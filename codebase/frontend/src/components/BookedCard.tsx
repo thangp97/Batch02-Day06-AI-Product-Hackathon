@@ -70,7 +70,7 @@ export default function BookedCard({ specialty, slot, bookingId, onReset, onFeed
             <button
               onClick={onFeedback}
               className="text-xs underline"
-              style={{ color: "rgba(224,240,255,0.26)", textDecorationColor: "rgba(224,240,255,0.14)" }}
+              style={{ color: "rgba(224,240,255,0.5)", textDecorationColor: "rgba(224,240,255,0.3)" }}
             >
               Đánh giá trải nghiệm / Báo vấn đề
             </button>

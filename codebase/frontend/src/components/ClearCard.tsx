@@ -122,7 +122,7 @@ export default function ClearCard({
           <button
             onClick={onFeedback}
             className="text-xs underline"
-            style={{ color: "rgba(224,240,255,0.28)", textDecorationColor: "rgba(224,240,255,0.16)" }}
+            style={{ color: "rgba(224,240,255,0.5)", textDecorationColor: "rgba(224,240,255,0.3)" }}
           >
             AI gợi sai? Báo vấn đề
           </button>

@@ -1,7 +1,7 @@
 import axios from "axios"
 import type { TriageResponse, Specialty, Slot, FeedbackPayload, BookingResponse } from "../types"
 
-const MOCK_MODE = false
+const MOCK_MODE = false  // false = gọi backend thật (Docker)
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:5000/api"
 

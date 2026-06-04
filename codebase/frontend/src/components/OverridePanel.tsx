@@ -6,6 +6,7 @@ type Props = {
   specialties: Specialty[]
   onBook: (specialty: Specialty, slot: Slot) => void
   onRetry: () => void
+  onFeedback?: () => void
 }
 
 function formatDateTime(iso: string) {
@@ -19,7 +20,7 @@ function formatDateTime(iso: string) {
   })
 }
 
-export default function OverridePanel({ specialties, onBook, onRetry }: Props) {
+export default function OverridePanel({ specialties, onBook, onRetry, onFeedback }: Props) {
   const [selectedId, setSelectedId] = useState<number | "">("")
   const [slots, setSlots] = useState<Slot[]>([])
   const [selectedSpecialty, setSelectedSpecialty] = useState<Specialty | null>(null)
@@ -119,10 +120,21 @@ export default function OverridePanel({ specialties, onBook, onRetry }: Props) {
         )}
       </div>
 
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-4 space-y-2">
         <button onClick={onRetry} className="btn-ghost w-full py-2 text-xs">
           Nhập lại triệu chứng
         </button>
+        {onFeedback && (
+          <div className="text-center">
+            <button
+              onClick={onFeedback}
+              className="text-xs underline"
+              style={{ color: "rgba(224,240,255,0.5)", textDecorationColor: "rgba(224,240,255,0.3)" }}
+            >
+              Báo vấn đề
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

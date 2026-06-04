@@ -145,8 +145,8 @@ export default function BookingModal({
             <button onClick={onCancel} disabled={loading} className="btn-ghost flex-1 py-2.5 text-sm">
               Hủy
             </button>
-            <button onClick={handleSubmit} disabled={loading} className="btn-green flex-1 py-2.5 text-sm">
-              {loading ? "Đang đặt..." : "Xác nhận đặt lịch"}
+            <button onClick={handleSubmit} disabled={loading} className="btn-green flex-1 py-2.5 text-sm" id="confirm-booking-btn">
+              {loading ? "Đang đặt..." : "Xác nhận"}
             </button>
           </div>
         </div>

@@ -359,6 +359,7 @@ export default function App() {
                 question={state.lastTriage.question}
                 disclaimer={state.lastTriage.disclaimer}
                 onSubmit={handleFollowupSubmit}
+                onFeedback={handleOpenFeedback}
               />
             )}
             {state.phase === "low-confidence-loading" && state.lastTriage?.question && (
@@ -367,6 +368,7 @@ export default function App() {
                 disclaimer={state.lastTriage.disclaimer}
                 disabled
                 onSubmit={() => {}}
+                onFeedback={handleOpenFeedback}
               />
             )}
 
@@ -374,8 +376,9 @@ export default function App() {
             {state.phase === "override" && (
               <OverridePanel
                 specialties={state.specialties}
-                onBook={handleInitiateBook}
+                onBook={(specialty, slot) => handleInitiateBook(slot, specialty)}
                 onRetry={handleRetry}
+                onFeedback={handleOpenFeedback}
               />
             )}
 

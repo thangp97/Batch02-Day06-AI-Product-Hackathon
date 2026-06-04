@@ -6,6 +6,7 @@ type Props = {
   disclaimer: string
   disabled?: boolean
   onSubmit: (answer: string) => void
+  onFeedback?: () => void
 }
 
 export default function FollowupInput({
@@ -13,6 +14,7 @@ export default function FollowupInput({
   disclaimer,
   disabled = false,
   onSubmit,
+  onFeedback,
 }: Props) {
   const [answer, setAnswer] = useState("")
 
@@ -69,7 +71,18 @@ export default function FollowupInput({
         </button>
       </div>
 
-      <div className="px-4 pb-3">
+      <div className="px-4 pb-3 space-y-2">
+        {onFeedback && (
+          <div className="text-center">
+            <button
+              onClick={onFeedback}
+              className="text-xs underline"
+              style={{ color: "rgba(224,240,255,0.5)", textDecorationColor: "rgba(224,240,255,0.3)" }}
+            >
+              AI hỏi sai? Báo vấn đề
+            </button>
+          </div>
+        )}
         <Disclaimer text={disclaimer} />
       </div>
     </div>

@@ -92,7 +92,7 @@ export default function RedFlagBanner({
             <button
               onClick={onFeedback}
               className="text-xs underline"
-              style={{ color: "rgba(224,240,255,0.24)", textDecorationColor: "rgba(224,240,255,0.14)" }}
+              style={{ color: "rgba(224,240,255,0.5)", textDecorationColor: "rgba(224,240,255,0.3)" }}
             >
               Báo vấn đề
             </button>
