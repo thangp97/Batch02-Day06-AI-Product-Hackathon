@@ -42,10 +42,17 @@ CREATE TABLE triage_logs (
 
 | Method | Endpoint | Mô tả |
 |---|---|---|
-| `POST` | `/triage` | Phân tầng triệu chứng lần đầu |
+| `POST` | `/triage` | Phân tầng triệu chứng lần đầu (bao gồm crisis detection) |
 | `POST` | `/triage/followup` | Re-triage sau câu hỏi thu hẹp |
 | `GET` | `/specialties` | Lấy danh sách chuyên khoa |
-| `GET` | `/specialties/:id/slots` | Lấy slot khả dụng theo chuyên khoa |
+| `GET` | `/specialties/:id/doctors` | Lấy danh sách bác sĩ của một chuyên khoa (dùng khi đặt tái khám) |
+| `GET` | `/specialties/:id/slots` | Lấy slot khả dụng theo chuyên khoa, hỗ trợ filter theo bác sĩ |
+| `POST` | `/bookings` | Đặt lịch khám mới hoặc tái khám |
+| `GET` | `/bookings/:id` | Xem chi tiết booking |
+| `POST` | `/conversations` | Lưu một lượt hội thoại |
+| `GET` | `/conversations/:sessionId` | Lấy lịch sử hội thoại theo session |
+| `POST` | `/feedback` | Gửi đánh giá sau khi dùng dịch vụ |
+| `GET` | `/feedback` | Lấy 50 đánh giá gần nhất |
 | `POST` | `/log` | Lưu hành động user (override, nhập lại) |
 
 ---
@@ -142,6 +149,26 @@ Nhận triệu chứng đầu vào, gọi LLM phân tầng, trả về action t�
 }
 ```
 
+**Crisis (nguy hiểm tính mạng / khủng hoảng tâm lý)** — phát hiện trước khi gọi LLM
+```json
+// Request
+{ "symptoms": "tôi chán sống, tôi không muốn sống nữa" }
+
+// Response
+{
+  "level": "red-flag",
+  "message": "Chúng tôi nhận thấy bạn đang trong tình trạng khẩn cấp hoặc khủng hoảng. Đừng một mình đối mặt — hãy gọi ngay đường dây hỗ trợ hoặc nhờ người thân đưa đến cơ sở y tế gần nhất.",
+  "question": null,
+  "specialty": null,
+  "slots": null,
+  "hotline": "115",
+  "mentalHealthHotline": "1800 599 920",
+  "disclaimer": "Đây là gợi ý tham khảo — gặp bác sĩ để xác nhận."
+}
+```
+
+> **Lưu ý:** Các cụm từ kích hoạt crisis detection (không qua LLM): "tôi sắp chết", "tôi chán sống", "muốn tự tử", "tự tử", "không muốn sống nữa", "mất nhiều máu", "bất tỉnh", v.v.
+
 ---
 
 ## 2. `POST /triage/followup`
@@ -235,7 +262,221 @@ Lấy slot khả dụng của một chuyên khoa từ bảng `slots`.
 
 ---
 
-## 5. `POST /log`
+## 5. `GET /specialties/:id/doctors`
+
+Lấy danh sách bác sĩ duy nhất thuộc một chuyên khoa. Dùng trong luồng **đặt tái khám** để user chọn bác sĩ mong muốn.
+
+### Response
+
+```json
+{
+  "specialty": { "id": 1, "code": "MAT", "name": "Chuyên khoa Mắt" },
+  "doctors": [
+    "GS.TS. Phạm Đình Lộc",
+    "PGS.TS. Nguyễn Thị Lan Anh"
+  ]
+}
+```
+
+---
+
+## 6. `GET /specialties/:id/slots`
+
+Lấy slot khả dụng của một chuyên khoa. Hỗ trợ filter theo ngày và bác sĩ.
+
+### Query (tuỳ chọn)
+
+| Param | Type | Mô tả |
+|---|---|---|
+| `date` | `string` (YYYY-MM-DD) | Lọc slot theo ngày |
+| `doctor` | `string` | Lọc slot theo tên bác sĩ (tìm gần đúng, không phân biệt hoa thường) |
+
+### Response
+
+```json
+{
+  "specialty": { "id": 1, "code": "MAT", "name": "Chuyên khoa Mắt" },
+  "slots": [
+    { "id": 1, "doctor": "GS.TS. Phạm Đình Lộc", "scheduledAt": "2026-06-07T02:00:00Z", "available": true },
+    { "id": 2, "doctor": "GS.TS. Phạm Đình Lộc", "scheduledAt": "2026-06-08T04:00:00Z", "available": true }
+  ]
+}
+```
+
+---
+
+## 7. `POST /bookings`
+
+Đặt lịch khám mới hoặc tái khám.
+
+### Request
+
+```json
+{
+  "slotId": 5,
+  "patientName": "Nguyễn Văn A",
+  "patientPhone": "0901234567",
+  "bookingType": "followup"
+}
+```
+
+| Field | Type | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `slotId` | `number` | ✅ | ID slot muốn đặt |
+| `patientName` | `string` | ✅ | Tên bệnh nhân |
+| `patientPhone` | `string` | ✅ | Số điện thoại Việt Nam (0xxxxxxxxx hoặc +84xxxxxxxxx) |
+| `bookingType` | `"new" \| "followup"` | | Loại lịch — mặc định `"new"` nếu bỏ trống |
+
+### Response
+
+```json
+{
+  "ok": true,
+  "bookingId": 12,
+  "detail": {
+    "bookingType": "followup",
+    "specialty": "Chuyên khoa Mắt",
+    "doctor": "GS.TS. Phạm Đình Lộc",
+    "scheduledAt": "2026-06-07T02:00:00Z",
+    "patientName": "Nguyễn Văn A",
+    "patientPhone": "0901234567"
+  }
+}
+```
+
+### Lỗi đặc thù
+
+| HTTP | Code | Khi nào |
+|---|---|---|
+| `404` | `SLOT_NOT_FOUND` | `slotId` không tồn tại |
+| `409` | `SLOT_UNAVAILABLE` | Slot đã được đặt bởi người khác |
+| `400` | `INVALID_PHONE` | Số điện thoại sai định dạng |
+
+---
+
+## 8. `GET /bookings/:id`
+
+Xem chi tiết một booking.
+
+### Response
+
+```json
+{
+  "bookingId": 12,
+  "bookingType": "followup",
+  "specialty": "Chuyên khoa Mắt",
+  "doctor": "GS.TS. Phạm Đình Lộc",
+  "scheduledAt": "2026-06-07T02:00:00Z",
+  "patientName": "Nguyễn Văn A",
+  "patientPhone": "0901234567",
+  "createdAt": "2026-06-04T10:00:00Z"
+}
+```
+
+---
+
+## 9. `POST /conversations`
+
+Lưu một lượt hội thoại (user hoặc assistant) vào DB.
+
+### Request
+
+```json
+{
+  "sessionId": "uuid-v4",
+  "role": "user",
+  "content": "Tôi bị đau mắt đỏ",
+  "metadata": null
+}
+```
+
+| Field | Type | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `sessionId` | `string` | ✅ | UUID do frontend tạo, nhóm các lượt hội thoại lại |
+| `role` | `"user" \| "assistant"` | ✅ | Người gửi |
+| `content` | `string` | ✅ | Nội dung tin nhắn, tối đa 2000 ký tự |
+| `metadata` | `object \| null` | | Với assistant: `{ level, specialtyCode, ... }` |
+
+### Response
+
+```json
+{ "ok": true, "id": 7 }
+```
+
+---
+
+## 10. `GET /conversations/:sessionId`
+
+Lấy toàn bộ lịch sử hội thoại của một session.
+
+### Response
+
+```json
+{
+  "sessionId": "uuid-v4",
+  "messages": [
+    { "id": 1, "role": "user",      "content": "Tôi bị đau mắt đỏ", "metadata": null,                         "createdAt": "..." },
+    { "id": 2, "role": "assistant", "content": "Triệu chứng phù hợp Chuyên khoa Mắt.", "metadata": { "level": "clear" }, "createdAt": "..." }
+  ]
+}
+```
+
+---
+
+## 11. `POST /feedback`
+
+Gửi đánh giá sau khi dùng dịch vụ.
+
+### Request
+
+```json
+{
+  "rating": 5,
+  "comment": "Chatbot gợi ý rất chính xác!",
+  "sessionId": "uuid-v4",
+  "bookingId": 12
+}
+```
+
+| Field | Type | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `rating` | `number` (1–5) | ✅ | Điểm đánh giá |
+| `comment` | `string` | | Nhận xét tự do |
+| `sessionId` | `string` | | Liên kết với session hội thoại |
+| `bookingId` | `number` | | Liên kết với booking đã đặt |
+
+### Response
+
+```json
+{ "ok": true, "id": 3 }
+```
+
+---
+
+## 12. `GET /feedback`
+
+Lấy 50 đánh giá gần nhất (dùng nội bộ / dashboard).
+
+### Response
+
+```json
+{
+  "feedbacks": [
+    {
+      "id": 3,
+      "rating": 5,
+      "comment": "Chatbot gợi ý rất chính xác!",
+      "sessionId": "uuid-v4",
+      "bookingId": 12,
+      "createdAt": "2026-06-04T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## 13. `POST /log`
 
 INSERT một bản ghi vào bảng `triage_logs`. Gọi khi user override chuyên khoa hoặc nhập lại triệu chứng.
 
@@ -272,7 +513,9 @@ INSERT một bản ghi vào bảng `triage_logs`. Gọi khi user override chuyê
 ## Kiểu dữ liệu dùng chung
 
 ```typescript
-type TriageLevel = "clear" | "low-confidence" | "red-flag"
+type TriageLevel = "clear" | "low-confidence" | "red-flag" | "out-of-scope"
+
+type BookingType = "new" | "followup"
 
 type Specialty = {
   id: number          // SERIAL từ PostgreSQL
@@ -293,8 +536,9 @@ type TriageResponse = {
   question: string | null
   specialty: Specialty | null
   slots: Slot[] | null
-  hotline?: string      // chỉ khi red-flag
-  disclaimer: string
+  hotline?: string             // chỉ khi red-flag
+  mentalHealthHotline?: string // chỉ khi crisis (tự tử / khủng hoảng tâm lý)
+  disclaimer: string | null    // null khi out-of-scope
 }
 ```
 
@@ -306,7 +550,15 @@ type TriageResponse = {
 |---|---|---|
 | `400` | `MISSING_SYMPTOMS` | `symptoms` rỗng hoặc thiếu |
 | `400` | `SYMPTOMS_TOO_LONG` | `symptoms` vượt 500 ký tự |
+| `400` | `MISSING_FIELDS` | Thiếu field bắt buộc trong request |
+| `400` | `INVALID_ID` | ID không phải số nguyên hợp lệ |
+| `400` | `INVALID_PHONE` | Số điện thoại sai định dạng |
+| `400` | `INVALID_RATING` | Rating ngoài khoảng 1–5 |
 | `404` | `SPECIALTY_NOT_FOUND` | `id` không tồn tại trong bảng `specialties` |
+| `404` | `SLOT_NOT_FOUND` | `slotId` không tồn tại |
+| `404` | `BOOKING_NOT_FOUND` | `bookingId` không tồn tại |
+| `409` | `SLOT_UNAVAILABLE` | Slot đã được đặt bởi người khác |
+| `429` | _(rate limit header)_ | Vượt quá 15 req/min với `/triage` hoặc 60 req/min các endpoint khác |
 | `500` | `LLM_ERROR` | LLM không trả về JSON hợp lệ |
 | `500` | `DB_ERROR` | Lỗi kết nối PostgreSQL |
 
@@ -321,10 +573,13 @@ type TriageResponse = {
 
 ## Quy tắc bắt buộc (Backend guard)
 
-1. Nếu `level = red-flag`: **strip toàn bộ** `specialty` và `slots` trước khi trả về — dù LLM có trả về hay không.
-2. `disclaimer` luôn có mặt trong mọi response thành công.
-3. `/triage/followup` chỉ được gọi tối đa 1 lần — backend không có endpoint `followup/followup`.
-4. Tất cả query PostgreSQL phải dùng **parameterized queries** (qua Prisma hoặc `pg` với `$1, $2`) — không nối string SQL trực tiếp.
+1. **Crisis trước LLM**: Nếu input chứa cụm từ nguy hiểm tính mạng/tâm lý → trả về `red-flag` ngay với `hotline + mentalHealthHotline`, không gọi LLM.
+2. Nếu `level = red-flag`: **strip toàn bộ** `specialty` và `slots` trước khi trả về — dù LLM có trả về hay không.
+3. `disclaimer` có mặt trong mọi response thành công (ngoại trừ `out-of-scope` trả về `null`).
+4. `/triage/followup` chỉ được gọi tối đa 1 lần — nếu vẫn `low-confidence` sau followup, backend tự fallback về Nội tổng quát.
+5. Tất cả query PostgreSQL phải dùng **parameterized queries** (qua Prisma) — không nối string SQL trực tiếp.
+6. Rate limit: `/triage` tối đa 15 req/min, các endpoint khác 60 req/min.
+7. Body size limit: 16 KB.
 
 
 

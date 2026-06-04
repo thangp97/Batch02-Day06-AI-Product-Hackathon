@@ -3,12 +3,13 @@ import Disclaimer from "./Disclaimer"
 type Props = {
   message: string
   hotline?: string
-  disclaimer: string
+  mentalHealthHotline?: string
+  disclaimer: string | null
   onRetry: () => void
   onFeedback?: () => void
 }
 
-export default function RedFlagBanner({ message, hotline = "115", disclaimer, onRetry, onFeedback }: Props) {
+export default function RedFlagBanner({ message, hotline = "115", mentalHealthHotline, disclaimer, onRetry, onFeedback }: Props) {
   return (
     <div className="card card-danger mx-3 mb-4 animate-slide-up animate-pulse-danger">
       {/* Header */}
@@ -36,8 +37,8 @@ export default function RedFlagBanner({ message, hotline = "115", disclaimer, on
         </p>
       </div>
 
-      {/* Hotline */}
-      <div className="mx-4 mb-4 rounded-xl p-4 flex items-center justify-between"
+      {/* Hotline cấp cứu */}
+      <div className="mx-4 mb-3 rounded-xl p-4 flex items-center justify-between"
         style={{ background: "var(--danger-bg)", border: "1.5px solid var(--danger-border)" }}>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--danger)" }}>
@@ -55,6 +56,31 @@ export default function RedFlagBanner({ message, hotline = "115", disclaimer, on
           📞 Gọi ngay
         </a>
       </div>
+
+      {/* Hotline hỗ trợ tâm lý — chỉ hiện khi có crisis tâm lý */}
+      {mentalHealthHotline && (
+        <div className="mx-4 mb-4 rounded-xl p-4 flex items-center justify-between"
+          style={{ background: "var(--warning-bg)", border: "1.5px solid var(--warning-border)" }}>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--warning)" }}>
+              Hỗ trợ tâm lý — miễn phí 24/7
+            </p>
+            <p className="font-black text-3xl" style={{ color: "var(--warning)", fontVariantNumeric: "tabular-nums" }}>
+              {mentalHealthHotline}
+            </p>
+          </div>
+          <a
+            href={`tel:${mentalHealthHotline.replace(/\s/g, "")}`}
+            className="btn"
+            style={{
+              textDecoration: "none", borderRadius: "0.75rem",
+              background: "var(--warning)", color: "#fff",
+            }}
+          >
+            📞 Gọi ngay
+          </a>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="px-4 pb-4 space-y-2">

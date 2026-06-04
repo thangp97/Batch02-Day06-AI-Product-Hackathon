@@ -3,7 +3,7 @@ import Disclaimer from "./Disclaimer"
 
 type Props = {
   question: string
-  disclaimer: string
+  disclaimer: string | null
   disabled?: boolean
   onSubmit: (answer: string) => void
   onFeedback?: () => void

@@ -6,7 +6,7 @@ const router = Router();
 
 // POST /bookings — đặt lịch khám
 router.post("/", async (req: Request, res: Response) => {
-  const { slotId, patientName: rawName, patientPhone: rawPhone } = req.body;
+  const { slotId, patientName: rawName, patientPhone: rawPhone, bookingType: rawType } = req.body;
 
   if (!slotId || !rawName || !rawPhone) {
     res.status(400).json({
@@ -22,8 +22,9 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const patientName = sanitizeInput(String(rawName));
+  const patientName  = sanitizeInput(String(rawName));
   const patientPhone = String(rawPhone).trim();
+  const bookingType  = rawType === "followup" ? "followup" : "new";
 
   if (patientName.length === 0) {
     res.status(400).json({ error: "MISSING_FIELDS", message: "Tên bệnh nhân không được để trống." });
@@ -53,7 +54,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
 
       return tx.booking.create({
-        data: { slotId: parsedSlotId, patientName, patientPhone },
+        data: { slotId: parsedSlotId, patientName, patientPhone, bookingType },
         include: { slot: { include: { specialty: true } } },
       });
     });
@@ -62,10 +63,11 @@ router.post("/", async (req: Request, res: Response) => {
       ok: true,
       bookingId: booking.id,
       detail: {
-        specialty: booking.slot.specialty.name,
-        doctor:    booking.slot.doctor,
-        scheduledAt: booking.slot.scheduledAt,
-        patientName: booking.patientName,
+        bookingType:  booking.bookingType,
+        specialty:    booking.slot.specialty.name,
+        doctor:       booking.slot.doctor,
+        scheduledAt:  booking.slot.scheduledAt,
+        patientName:  booking.patientName,
         patientPhone: booking.patientPhone,
       },
     });
@@ -99,13 +101,14 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
 
     res.json({
-      bookingId: booking.id,
-      specialty: booking.slot.specialty.name,
-      doctor: booking.slot.doctor,
-      scheduledAt: booking.slot.scheduledAt,
-      patientName: booking.patientName,
+      bookingId:    booking.id,
+      bookingType:  booking.bookingType,
+      specialty:    booking.slot.specialty.name,
+      doctor:       booking.slot.doctor,
+      scheduledAt:  booking.slot.scheduledAt,
+      patientName:  booking.patientName,
       patientPhone: booking.patientPhone,
-      createdAt: booking.createdAt,
+      createdAt:    booking.createdAt,
     });
   } catch (err) {
     console.error("[bookings/:id]", err);

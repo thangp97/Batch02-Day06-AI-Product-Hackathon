@@ -11,7 +11,7 @@ const client = new OpenAI({
 });
 
 // Đổi model tại đây nếu cần — xem danh sách tại openrouter.ai/models
-const MODEL = process.env.OPENROUTER_MODEL ?? "google/gemini-flash-1.5";
+const MODEL = process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini";
 
 export async function chatComplete(
   systemPrompt: string,

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { chatComplete } from "../lib/llm";
-import { detectInjection, sanitizeInput, validateLLMResponse } from "../lib/guards";
+import { detectInjection, detectCrisis, detectFollowupIntent, detectBookingIntent, sanitizeInput, validateLLMResponse } from "../lib/guards";
 import prisma from "../db";
 
 const router = Router();
@@ -157,6 +157,48 @@ router.post("/", async (req: Request, res: Response) => {
   }
   if (symptoms.length > 500) {
     res.status(400).json({ error: "SYMPTOMS_TOO_LONG", message: "Triệu chứng không được vượt quá 500 ký tự." });
+    return;
+  }
+
+  // Phát hiện ý định tái khám — chuyển luồng, không cần LLM
+  if (detectFollowupIntent(symptoms)) {
+    res.json({
+      level: "followup-intent",
+      message: "Để đặt lịch tái khám, vui lòng chọn chuyên khoa và bác sĩ bạn muốn gặp lại.",
+      question: null,
+      specialty: null,
+      slots: null,
+      disclaimer: null,
+    });
+    return;
+  }
+
+  // Phát hiện ý định đặt lịch chung — hỏi thêm triệu chứng
+  if (detectBookingIntent(symptoms)) {
+    res.json({
+      level: "booking-prompt",
+      message: "Để tôi gợi ý chuyên khoa phù hợp, bạn hãy mô tả triệu chứng đang gặp nhé. Ví dụ: \"đau mắt đỏ 2 ngày\", \"đau bụng buồn nôn\", \"đau đầu kèm chóng mặt\".",
+      question: null,
+      specialty: null,
+      slots: null,
+      disclaimer: null,
+    });
+    return;
+  }
+
+  // Phát hiện khủng hoảng / nguy hiểm tính mạng — không cần gọi LLM
+  if (detectCrisis(symptoms)) {
+    res.json({
+      level: "red-flag",
+      message:
+        "Chúng tôi nhận thấy bạn đang trong tình trạng khẩn cấp hoặc khủng hoảng. Đừng một mình đối mặt — hãy gọi ngay đường dây hỗ trợ hoặc nhờ người thân đưa đến cơ sở y tế gần nhất.",
+      question: null,
+      specialty: null,
+      slots: null,
+      hotline: "115",
+      mentalHealthHotline: "1800 599 920",
+      disclaimer: DISCLAIMER,
+    });
     return;
   }
 

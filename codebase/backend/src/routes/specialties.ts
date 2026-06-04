@@ -14,7 +14,36 @@ router.get("/", async (_req: Request, res: Response) => {
   }
 });
 
-// GET /specialties/:id/slots
+// GET /specialties/:id/doctors — danh sách bác sĩ duy nhất của khoa (dùng cho luồng tái khám)
+router.get("/:id/doctors", async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "INVALID_ID", message: "ID không hợp lệ." });
+    return;
+  }
+
+  try {
+    const specialty = await prisma.specialty.findUnique({ where: { id } });
+    if (!specialty) {
+      res.status(404).json({ error: "SPECIALTY_NOT_FOUND", message: "Chuyên khoa không tồn tại." });
+      return;
+    }
+
+    const slots = await prisma.slot.findMany({
+      where: { specialtyId: id },
+      select: { doctor: true },
+      distinct: ["doctor"],
+      orderBy: { doctor: "asc" },
+    });
+
+    res.json({ specialty, doctors: slots.map((s) => s.doctor) });
+  } catch (err) {
+    console.error("[specialties/:id/doctors]", err);
+    res.status(500).json({ error: "DB_ERROR", message: "Lỗi kết nối PostgreSQL." });
+  }
+});
+
+// GET /specialties/:id/slots — hỗ trợ filter theo ?date= và ?doctor=
 router.get("/:id/slots", async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
@@ -29,10 +58,13 @@ router.get("/:id/slots", async (req: Request, res: Response) => {
       return;
     }
 
-    const dateFilter = req.query.date as string | undefined;
+    const dateFilter   = req.query.date   as string | undefined;
+    const doctorFilter = req.query.doctor as string | undefined;
+
     const slots = await prisma.slot.findMany({
       where: {
         specialtyId: id,
+        ...(doctorFilter && { doctor: { contains: doctorFilter, mode: "insensitive" } }),
         ...(dateFilter && {
           scheduledAt: {
             gte: new Date(`${dateFilter}T00:00:00Z`),

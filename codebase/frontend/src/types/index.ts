@@ -1,4 +1,10 @@
-export type TriageLevel = "clear" | "low-confidence" | "red-flag"
+export type TriageLevel =
+  | "clear"
+  | "low-confidence"
+  | "red-flag"
+  | "out-of-scope"
+  | "booking-prompt"
+  | "followup-intent"
 
 export type Specialty = {
   id: number
@@ -20,7 +26,8 @@ export type TriageResponse = {
   specialty: Specialty | null
   slots: Slot[] | null
   hotline?: string
-  disclaimer: string
+  mentalHealthHotline?: string
+  disclaimer: string | null
 }
 
 export type MessageRole = "user" | "ai"
@@ -40,6 +47,7 @@ export type Phase =
   | "low-confidence-loading"
   | "red-flag"
   | "override"
+  | "followup-booking"
   | "booking-form"
   | "booking-loading"
   | "booked"

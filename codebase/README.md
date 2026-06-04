@@ -6,13 +6,18 @@
 
 ## Luồng hoạt động
 
+### Luồng triage (khám mới)
+
 ```
 User nhập triệu chứng
         │
         ▼
 ┌───────────────────┐
-│   POST /triage    │  ← gọi LLM qua OpenRouter, input wrap trong <symptoms>
+│   POST /triage    │  ← crisis detection trước, rồi gọi LLM qua OpenRouter
 └───────────────────┘
+        │
+        ├── crisis (tự tử / mất máu / bất tỉnh)
+        │       └─→ red-flag ngay (không qua LLM) + hotline 115 + 1800 599 920
         │
         ├── level = "out-of-scope" ──→ Từ chối, hướng dẫn nhập triệu chứng
         │
@@ -38,22 +43,45 @@ User nhập triệu chứng
                     User chấp nhận                    User từ chối (Override)
                               │                                 │
                               ▼                                 ▼
-                     POST /bookings              GET /specialties → chọn thủ công
+              POST /bookings (bookingType:"new")   GET /specialties → chọn thủ công
                               │                                 │
                               ▼                                 ▼
-                  Booking thành công ✅              POST /bookings với khoa mới
+                  Booking thành công ✅         POST /bookings với khoa mới
+```
+
+### Luồng tái khám
+
+```
+User chọn "Đặt tái khám"
+        │
+        ▼
+GET /specialties          ← danh sách 6 chuyên khoa
+        │
+        ▼
+GET /specialties/:id/doctors  ← danh sách bác sĩ của khoa đã chọn
+        │
+        ▼
+GET /specialties/:id/slots?doctor=<tên>  ← slot còn trống của bác sĩ đó
+        │
+        ▼
+POST /bookings (bookingType:"followup")
+        │
+        ▼
+Tái khám đặt thành công ✅
 ```
 
 ---
 
-## Bốn path demo
+## Các path demo
 
 | Path | Input ví dụ | Kết quả |
 |---|---|---|
 | **Happy (clear)** | "đau mắt đỏ, chảy nước mắt 2 ngày" | Gợi ý Chuyên khoa Mắt → hiện slot → đặt lịch thành công |
 | **Low-confidence** | "hay mệt mỏi, đôi khi đau đầu" | AI hỏi thêm 1 câu → re-classify → gợi ý khoa + đặt lịch |
 | **Red-flag** | "đau ngực, khó thở, tay trái tê" | Block đặt lịch + cảnh báo + hotline 115 |
+| **Crisis** | "tôi chán sống, tôi không muốn sống nữa" | Red-flag tức thì (không qua LLM) + hotline 115 + 1800 599 920 |
 | **Failure/Override** | AI gợi sai → user biết | Nút "Nhập lại" hoặc dropdown chọn chuyên khoa khác |
+| **Tái khám** | User chọn "Đặt tái khám" | Chọn khoa → chọn bác sĩ → chọn slot → đặt `bookingType:"followup"` |
 
 ---
 
@@ -61,29 +89,37 @@ User nhập triệu chứng
 
 ```
 codebase/
+├── docker-compose.yml          ← Full-stack: PostgreSQL + Backend + Frontend
 ├── backend/
 │   ├── prisma/
 │   │   ├── schema.prisma       ← 6 model: Specialty, Slot, Booking, TriageLog, ConversationMessage, Feedback
-│   │   └── seed.ts             ← Mock data: 6 khoa, 33 slot với tên bác sĩ thật
+│   │   └── seed.ts             ← Mock data: 6 khoa, 32 slot với tên bác sĩ thật
 │   ├── src/
 │   │   ├── index.ts            ← Express app + helmet + rate limit + cors
 │   │   ├── db.ts               ← Prisma client singleton
 │   │   ├── lib/
 │   │   │   ├── llm.ts          ← OpenRouter provider (openai-compatible)
-│   │   │   └── guards.ts       ← detectInjection, sanitizeInput, isValidPhone, validateLLMResponse
+│   │   │   └── guards.ts       ← detectCrisis, detectInjection, sanitizeInput, isValidPhone
 │   │   └── routes/
-│   │       ├── triage.ts       ← POST /triage, POST /triage/followup
-│   │       ├── specialties.ts  ← GET /specialties, GET /specialties/:id/slots
-│   │       ├── bookings.ts     ← POST /bookings, GET /bookings/:id
+│   │       ├── triage.ts       ← POST /triage (+ crisis detection), POST /triage/followup
+│   │       ├── specialties.ts  ← GET /specialties, GET /specialties/:id/doctors, GET /specialties/:id/slots
+│   │       ├── bookings.ts     ← POST /bookings (new + followup), GET /bookings/:id
 │   │       ├── conversations.ts ← POST /conversations, GET /conversations/:sessionId
 │   │       ├── feedback.ts     ← POST /feedback, GET /feedback
 │   │       └── log.ts          ← POST /log
-│   ├── docker-compose.yml      ← PostgreSQL trên Docker (port 5433)
+│   ├── docker-compose.yml      ← Backend + PostgreSQL (dev, không có frontend)
+│   ├── Dockerfile
+│   ├── docker-entrypoint.sh
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── .env.example
 └── frontend/
-    └── (React app)
+    ├── src/
+    │   ├── main.tsx
+    │   └── App.tsx             ← React 19 + Vite + TailwindCSS 4 + Axios
+    ├── Dockerfile              ← Multi-stage: node:20-alpine → nginx:stable-alpine
+    ├── nginx.conf              ← SPA fallback + static asset caching
+    └── package.json
 ```
 
 ---
@@ -92,72 +128,99 @@ codebase/
 
 ### Yêu cầu
 
-- Node.js >= 18
-- Docker (để chạy PostgreSQL)
-- OpenRouter API key — lấy tại openrouter.ai/keys
+- Node.js >= 18 (chỉ cần khi chạy dev)
+- Docker Desktop — tải tại [docker.com](https://www.docker.com/products/docker-desktop)
+- OpenRouter API key — lấy tại [openrouter.ai/keys](https://openrouter.ai/keys)
 
-### Backend — chế độ dev (local)
+---
 
-```bash
+### Chạy toàn bộ dự án bằng Docker (khuyên dùng)
+
+```powershell
+cd codebase
+
+# Bước 1: Tạo file .env cho backend
+cp backend/.env.example backend/.env
+# Mở backend/.env và điền OPENROUTER_API_KEY=sk-or-v1-...
+
+# Bước 2: Build + khởi động toàn bộ stack (lần đầu — có seed data)
+$env:RUN_SEED="true"; docker compose up --build -d
+
+# Bước 3: Kiểm tra các service đã chạy
+docker compose ps
+```
+
+Sau khi chạy xong:
+
+| Service | URL |
+|---|---|
+| **Frontend** (React) | http://localhost:3000 |
+| **Backend API** | http://localhost:5000/api/health |
+| **PostgreSQL** | localhost:5433 (user: postgres / postgres) |
+
+```powershell
+# Các lần chạy tiếp theo (không seed lại)
+docker compose up -d
+
+# Xem log realtime
+docker compose logs -f
+
+# Xem log từng service
+docker compose logs -f backend
+docker compose logs -f frontend
+
+# Seed lại dữ liệu thủ công
+docker compose exec backend npx ts-node prisma/seed.ts
+
+# Dừng toàn bộ (giữ data)
+docker compose down
+
+# Dừng và xoá toàn bộ data
+docker compose down -v
+```
+
+---
+
+### Chạy dev (local, hot reload)
+
+#### Backend
+
+```powershell
 cd codebase/backend
 
-# Cài dependencies
 npm install
-
-# Tạo file .env và điền thông tin
 cp .env.example .env
+# Điền OPENROUTER_API_KEY vào .env
 
-# Khởi động PostgreSQL qua Docker
-docker-compose up -d postgres
+# Khởi động PostgreSQL
+docker compose up -d postgres
 
-# Push schema lên DB và seed data
+# Push schema + seed
 npx prisma db push
 npm run db:seed
 
-# Chạy dev server (hot reload)
+# Dev server (hot reload)
 npm run dev
 # → http://localhost:5000/api/health
 ```
 
-### Backend — chế độ production (Docker full-stack)
+#### Frontend
 
-```bash
-cd codebase/backend
-
-# Tạo .env với OPENROUTER_API_KEY
-cp .env.example .env
-# Điền OPENROUTER_API_KEY vào .env
-
-# Lần đầu: build + khởi động + seed
-RUN_SEED=true docker-compose up --build -d
-
-# Các lần tiếp theo (không seed lại)
-docker-compose up -d
-
-# Xem log
-docker-compose logs -f backend
-
-# Seed thủ công khi cần
-docker-compose exec backend npx ts-node prisma/seed.ts
-
-# Dừng toàn bộ
-docker-compose down
-```
-
-> **Lưu ý:** Khi chạy full Docker, backend kết nối DB qua hostname nội bộ `postgres:5432` (không phải `localhost:5433`). Biến `DATABASE_URL` trong `docker-compose.yml` đã được set sẵn — không cần sửa `.env`.
-
-### Frontend
-
-```bash
+```powershell
 cd codebase/frontend
+
 npm install
 npm run dev
 # → http://localhost:5173
 ```
 
+> **Lưu ý:** Khi chạy dev, frontend gọi backend qua `http://localhost:5000/api` (mặc định trong Vite). Đảm bảo backend đang chạy trước khi mở frontend.
+
 ---
 
-## Biến môi trường (`.env`)
+## Biến môi trường
+
+### `backend/.env`
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5433/triage_chatbot"
@@ -166,17 +229,29 @@ OPENROUTER_MODEL="openai/gpt-4o-mini"
 PORT=5000
 ```
 
+> Khi chạy Docker full-stack, `DATABASE_URL` bị override bởi `docker-compose.yml` để dùng hostname nội bộ `postgres:5432` — chỉ cần điền `OPENROUTER_API_KEY`.
+
+### Frontend (`VITE_API_URL`)
+
+Biến này được bake vào bundle lúc build. Mặc định `http://localhost:5000/api` — phù hợp cả Docker và dev local. Để đổi (ví dụ deploy lên server):
+
+```powershell
+$env:VITE_API_URL="https://api.example.com/api"; docker compose up --build -d
+```
+
 ---
 
 ## Công cụ và API đã dùng
 
 | Hạng mục | Công nghệ |
 |---|---|
-| AI / LLM | OpenRouter (gpt-4o-mini mặc định) |
-| Backend | Node.js, Express, TypeScript |
-| Database | PostgreSQL + Prisma ORM + Docker |
-| Frontend | React, TypeScript, TailwindCSS |
-| Dev tool | ts-node-dev, Prisma Studio, Docker |
+| AI / LLM | OpenRouter API — model `gpt-4o-mini` (mặc định) |
+| Backend | Node.js 20, Express 5, TypeScript, Prisma ORM |
+| Database | PostgreSQL 16 (Alpine) |
+| Frontend | React 19, Vite 8, TailwindCSS 4, Axios, TypeScript |
+| Bảo mật | helmet, express-rate-limit, prompt injection guard, crisis detection |
+| Container | Docker multi-stage build, nginx (serve frontend), docker compose |
+| Dev tool | ts-node-dev, Prisma Studio |
 
 ---
 

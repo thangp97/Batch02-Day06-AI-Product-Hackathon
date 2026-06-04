@@ -10,6 +10,7 @@ import ClearCard from "./components/ClearCard"
 import RedFlagBanner from "./components/RedFlagBanner"
 import FollowupInput from "./components/FollowupInput"
 import OverridePanel from "./components/OverridePanel"
+import FollowupBookingPanel from "./components/FollowupBookingPanel"
 import BookedCard from "./components/BookedCard"
 import BookingModal from "./components/BookingModal"
 import FeedbackModal from "./components/FeedbackModal"
@@ -22,6 +23,7 @@ type ConversationState = {
   specialties: Specialty[]
   pendingSlot: Slot | null
   pendingSpecialty: Specialty | null
+  pendingBookingType: "new" | "followup"
   bookedSpecialty: Specialty | null
   bookedSlot: Slot | null
   bookingId: number | null
@@ -32,6 +34,7 @@ type ConversationState = {
 const INIT_STATE: ConversationState = {
   phase: "idle", symptoms: "", messages: [], lastTriage: null,
   specialties: [], pendingSlot: null, pendingSpecialty: null,
+  pendingBookingType: "new",
   bookedSpecialty: null, bookedSlot: null, bookingId: null,
   followupUsed: false, showFeedback: false,
 }
@@ -40,6 +43,7 @@ const HINTS = [
   "Mắt đỏ, chảy nước mắt 2 ngày",
   "Hay mệt mỏi, đôi khi đau đầu",
   "Đau ngực, khó thở, tay trái tê",
+  "Tôi muốn tái khám",
 ]
 
 function uid() { return Math.random().toString(36).slice(2) }
@@ -83,10 +87,29 @@ export default function App() {
     }
   }
 
-  function handleTriageResponse(triage: TriageResponse, symptoms: string) {
+  async function handleTriageResponse(triage: TriageResponse, symptoms: string) {
     addMessage({ role: "ai", content: triage.message, triageData: triage })
-    if (triage.level === "red-flag") { setState((prev) => ({ ...prev, phase: "red-flag", lastTriage: triage })); return }
-    if (triage.level === "low-confidence") { setState((prev) => ({ ...prev, phase: "low-confidence", lastTriage: triage, symptoms })); return }
+
+    if (triage.level === "red-flag") {
+      setState((prev) => ({ ...prev, phase: "red-flag", lastTriage: triage }))
+      return
+    }
+    if (triage.level === "low-confidence") {
+      setState((prev) => ({ ...prev, phase: "low-confidence", lastTriage: triage, symptoms }))
+      return
+    }
+    // out-of-scope hoặc booking-prompt → giữ idle để user tiếp tục nhập
+    if (triage.level === "out-of-scope" || triage.level === "booking-prompt") {
+      setState((prev) => ({ ...prev, phase: "idle", lastTriage: triage }))
+      return
+    }
+    // followup-intent → load specialties rồi hiện FollowupBookingPanel
+    if (triage.level === "followup-intent") {
+      const specialties = await getSpecialties().catch(() => [])
+      setState((prev) => ({ ...prev, phase: "followup-booking", specialties, lastTriage: triage }))
+      return
+    }
+    // clear
     setState((prev) => ({ ...prev, phase: "clear", lastTriage: triage }))
   }
 
@@ -127,24 +150,30 @@ export default function App() {
   }
 
   /* ── Booking ── */
-  function handleInitiateBook(slot: Slot, specialty: Specialty) {
-    setState((prev) => ({ ...prev, pendingSlot: slot, pendingSpecialty: specialty, phase: "booking-form" }))
+  function handleInitiateBook(slot: Slot, specialty: Specialty, bookingType: "new" | "followup" = "new") {
+    setState((prev) => ({ ...prev, pendingSlot: slot, pendingSpecialty: specialty, pendingBookingType: bookingType, phase: "booking-form" }))
   }
 
   function handleBookFromClear(slot: Slot) {
     if (!state.lastTriage?.specialty) return
-    handleInitiateBook(slot, state.lastTriage.specialty)
+    handleInitiateBook(slot, state.lastTriage.specialty, "new")
   }
 
   function handleCancelBooking() {
-    setState((prev) => ({ ...prev, pendingSlot: null, pendingSpecialty: null, phase: "clear" }))
+    const returnPhase = state.pendingBookingType === "followup" ? "followup-booking" : "clear"
+    setState((prev) => ({ ...prev, pendingSlot: null, pendingSpecialty: null, phase: returnPhase }))
   }
 
   async function handleConfirmBooking(patientName: string, patientPhone: string) {
     if (!state.pendingSlot || !state.pendingSpecialty) return
     setState((prev) => ({ ...prev, phase: "booking-loading" }))
     try {
-      const result = await postBooking({ slotId: state.pendingSlot!.id, patientName, patientPhone })
+      const result = await postBooking({
+        slotId: state.pendingSlot!.id,
+        patientName,
+        patientPhone,
+        bookingType: state.pendingBookingType,
+      })
       setState((prev) => ({
         ...prev, phase: "booked",
         bookedSpecialty: prev.pendingSpecialty, bookedSlot: prev.pendingSlot,
@@ -171,6 +200,7 @@ export default function App() {
   const showMainInput =
     !isTerminal &&
     state.phase !== "low-confidence" && state.phase !== "low-confidence-loading" &&
+    state.phase !== "followup-booking" &&
     state.phase !== "booking-form" && state.phase !== "booking-loading"
 
   return (
@@ -271,12 +301,13 @@ export default function App() {
               />
             )}
 
-            {/* Red-flag */}
+            {/* Red-flag (kể cả crisis tâm lý) */}
             {state.phase === "red-flag" && state.lastTriage && (
               <RedFlagBanner
                 message={state.lastTriage.message}
                 hotline={state.lastTriage.hotline ?? "115"}
-                disclaimer={state.lastTriage.disclaimer}
+                mentalHealthHotline={state.lastTriage.mentalHealthHotline}
+                disclaimer={state.lastTriage.disclaimer ?? ""}
                 onRetry={handleRetry}
                 onFeedback={handleOpenFeedback}
               />
@@ -305,8 +336,18 @@ export default function App() {
             {state.phase === "override" && (
               <OverridePanel
                 specialties={state.specialties}
-                onBook={(specialty, slot) => handleInitiateBook(slot, specialty)}
+                onBook={(specialty, slot) => handleInitiateBook(slot, specialty, "new")}
                 onRetry={handleRetry}
+                onFeedback={handleOpenFeedback}
+              />
+            )}
+
+            {/* Followup booking panel — đặt tái khám */}
+            {state.phase === "followup-booking" && (
+              <FollowupBookingPanel
+                specialties={state.specialties}
+                onBook={(specialty, slot) => handleInitiateBook(slot, specialty, "followup")}
+                onRetry={reset}
                 onFeedback={handleOpenFeedback}
               />
             )}

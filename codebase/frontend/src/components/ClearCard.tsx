@@ -4,7 +4,7 @@ import Disclaimer from "./Disclaimer"
 type Props = {
   specialty: Specialty
   slots: Slot[]
-  disclaimer: string
+  disclaimer: string | null
   onBook: (slot: Slot) => void
   onRetry: () => void
   onOverride: () => void

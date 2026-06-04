@@ -149,6 +149,36 @@ export async function getSlotsBySpecialty(
   return res.data
 }
 
+export async function getDoctorsBySpecialty(specialtyId: number): Promise<string[]> {
+  if (MOCK_MODE) {
+    await delay(300)
+    const doctors: Record<number, string[]> = {
+      1: ["BS. Nguyễn Văn A", "BS. Trần Thị B"],
+      2: ["BS. Lê Văn C", "BS. Phạm Thị D"],
+      3: ["BS. Đỗ Văn E", "BS. Hoàng Thị F"],
+      4: ["BS. Vũ Văn G", "BS. Bùi Thị H"],
+      5: ["BS. Đinh Văn I", "BS. Ngô Thị J"],
+      6: ["BS. Trịnh Văn K", "BS. Lý Thị L"],
+    }
+    return doctors[specialtyId] ?? []
+  }
+  const res = await axios.get(`${BASE}/specialties/${specialtyId}/doctors`)
+  return res.data.doctors
+}
+
+export async function getSlotsByDoctor(
+  specialtyId: number,
+  doctor: string
+): Promise<{ specialty: Specialty; slots: Slot[] }> {
+  if (MOCK_MODE) {
+    await delay(400)
+    const specialty = MOCK_SPECIALTIES.find((s) => s.id === specialtyId) ?? MOCK_SPECIALTIES[2]
+    return { specialty, slots: mockSlotsFor(specialtyId).filter((s) => s.doctor === doctor) }
+  }
+  const res = await axios.get(`${BASE}/specialties/${specialtyId}/slots`, { params: { doctor } })
+  return res.data
+}
+
 export async function postLog(payload: {
   symptoms: string
   aiLevel: string
@@ -184,6 +214,7 @@ export async function postBooking(payload: {
   slotId: number
   patientName: string
   patientPhone: string
+  bookingType?: "new" | "followup"
 }): Promise<BookingResponse> {
   if (MOCK_MODE) {
     await delay(700)
