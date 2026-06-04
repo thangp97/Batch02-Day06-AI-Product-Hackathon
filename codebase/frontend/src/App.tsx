@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { Message, Phase, Specialty, Slot, TriageResponse, FeedbackPayload } from "./types"
 import {
-  postTriage, postFollowup, getSpecialties, postLog, postFeedback, postBooking,
+  postTriage, postFollowup, getSpecialties, postLog, postFeedback, postBooking, postConversation,
 } from "./api/triageApi"
 import ChatBubble from "./components/ChatBubble"
 import ChatInput from "./components/ChatInput"
@@ -17,6 +17,7 @@ import FeedbackModal from "./components/FeedbackModal"
 
 type ConversationState = {
   phase: Phase
+  sessionId: string
   symptoms: string
   messages: Message[]
   lastTriage: TriageResponse | null
@@ -31,8 +32,10 @@ type ConversationState = {
   showFeedback: boolean
 }
 
+function uid() { return Math.random().toString(36).slice(2) }
+
 const INIT_STATE: ConversationState = {
-  phase: "idle", symptoms: "", messages: [], lastTriage: null,
+  phase: "idle", sessionId: uid(), symptoms: "", messages: [], lastTriage: null,
   specialties: [], pendingSlot: null, pendingSpecialty: null,
   pendingBookingType: "new",
   bookedSpecialty: null, bookedSlot: null, bookingId: null,
@@ -45,8 +48,6 @@ const HINTS = [
   "Đau ngực, khó thở, tay trái tê",
   "Tôi muốn tái khám",
 ]
-
-function uid() { return Math.random().toString(36).slice(2) }
 
 export default function App() {
   const [state, setState] = useState<ConversationState>(INIT_STATE)
@@ -70,9 +71,20 @@ export default function App() {
 
   function addMessage(msg: Omit<Message, "id">) {
     setState((prev) => ({ ...prev, messages: [...prev.messages, { ...msg, id: uid() }] }))
+    postConversation({
+      sessionId: state.sessionId,
+      role: msg.role === "ai" ? "assistant" : "user",
+      content: msg.content,
+      ...(msg.triageData && {
+        metadata: {
+          level: msg.triageData.level,
+          specialtyCode: msg.triageData.specialty?.code ?? null,
+        },
+      }),
+    })
   }
 
-  function reset() { setState(INIT_STATE) }
+  function reset() { setState({ ...INIT_STATE, sessionId: uid() }) }
 
   /* ── Triage ── */
   async function handleSymptomSubmit(symptoms: string) {
@@ -131,12 +143,6 @@ export default function App() {
     let specialties = state.specialties
     if (specialties.length === 0) specialties = await getSpecialties().catch(() => [])
     setState((prev) => ({ ...prev, phase: "override", specialties }))
-    postLog({
-      symptoms: state.symptoms,
-      aiLevel: state.lastTriage?.level ?? "clear",
-      aiSuggested: state.lastTriage?.specialty?.name ?? null,
-      userAction: "override",
-    })
   }
 
   function handleRetry() {
@@ -151,6 +157,15 @@ export default function App() {
 
   /* ── Booking ── */
   function handleInitiateBook(slot: Slot, specialty: Specialty, bookingType: "new" | "followup" = "new") {
+    if (state.phase === "override") {
+      postLog({
+        symptoms: state.symptoms,
+        aiLevel: state.lastTriage?.level ?? "clear",
+        aiSuggested: state.lastTriage?.specialty?.name ?? null,
+        userAction: "override",
+        userSelected: specialty.name,
+      })
+    }
     setState((prev) => ({ ...prev, pendingSlot: slot, pendingSpecialty: specialty, pendingBookingType: bookingType, phase: "booking-form" }))
   }
 
@@ -190,7 +205,7 @@ export default function App() {
   function handleOpenFeedback() { setState((prev) => ({ ...prev, showFeedback: true })) }
   function handleCloseFeedback() { setState((prev) => ({ ...prev, showFeedback: false })) }
   async function handleFeedbackSubmit(payload: FeedbackPayload) {
-    await postFeedback({ ...payload, bookingId: state.bookingId })
+    await postFeedback({ ...payload, bookingId: state.bookingId, sessionId: state.sessionId })
     setState((prev) => ({ ...prev, showFeedback: false }))
   }
 
