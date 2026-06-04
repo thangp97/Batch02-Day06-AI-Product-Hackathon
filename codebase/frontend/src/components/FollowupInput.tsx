@@ -9,13 +9,7 @@ type Props = {
   onFeedback?: () => void
 }
 
-export default function FollowupInput({
-  question,
-  disclaimer,
-  disabled = false,
-  onSubmit,
-  onFeedback,
-}: Props) {
+export default function FollowupInput({ question, disclaimer, disabled = false, onSubmit, onFeedback }: Props) {
   const [answer, setAnswer] = useState("")
 
   function handleSubmit() {
@@ -26,28 +20,16 @@ export default function FollowupInput({
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit()
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit() }
   }
 
   return (
-    <div
-      className="mx-2 mb-3 rounded-2xl overflow-hidden animate-slide-up"
-      style={{
-        border: "1px solid rgba(245,158,11,0.22)",
-        background: "rgba(245,158,11,0.04)",
-      }}
-    >
-      <div className="px-4 py-3" style={{ borderBottom: "1px solid rgba(245,158,11,0.14)" }}>
-        <p
-          className="text-xs uppercase tracking-widest mb-1 font-semibold"
-          style={{ color: "rgba(245,158,11,0.65)", fontSize: "0.6rem" }}
-        >
-          Câu hỏi làm rõ
+    <div className="card card-warning mx-3 mb-3 animate-slide-up">
+      <div className="card-header card-header-warning">
+        <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--warning)" }}>
+          💬 Cần làm rõ thêm
         </p>
-        <p className="text-sm font-medium" style={{ color: "#e0f0ff" }}>
+        <p className="font-semibold text-base" style={{ color: "var(--warning-label)" }}>
           {question}
         </p>
       </div>
@@ -59,28 +41,23 @@ export default function FollowupInput({
           onChange={(e) => setAnswer(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          placeholder="Trả lời tại đây..."
-          className="input-dark flex-1"
+          placeholder="Nhập câu trả lời của bạn..."
+          className="input-field flex-1"
         />
         <button
           onClick={handleSubmit}
           disabled={disabled || !answer.trim()}
-          className="btn-cyan px-4 py-2 text-lg flex-shrink-0"
+          className="btn btn-primary flex-shrink-0"
+          style={{ width: "48px", height: "48px", padding: 0, borderRadius: "0.75rem", fontSize: "1.25rem" }}
         >
-          →
+          ↑
         </button>
       </div>
 
-      <div className="px-4 pb-3 space-y-2">
+      <div className="px-4 pb-3 space-y-1">
         {onFeedback && (
           <div className="text-center">
-            <button
-              onClick={onFeedback}
-              className="text-xs underline"
-              style={{ color: "rgba(224,240,255,0.5)", textDecorationColor: "rgba(224,240,255,0.3)" }}
-            >
-              AI hỏi sai? Báo vấn đề
-            </button>
+            <button onClick={onFeedback} className="feedback-link">AI hỏi sai? Báo vấn đề</button>
           </div>
         )}
         <Disclaimer text={disclaimer} />

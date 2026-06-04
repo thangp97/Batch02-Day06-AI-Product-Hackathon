@@ -12,11 +12,8 @@ type Props = {
 function formatDateTime(iso: string) {
   const d = new Date(iso)
   return d.toLocaleString("vi-VN", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
+    weekday: "short", day: "2-digit", month: "2-digit",
+    hour: "2-digit", minute: "2-digit",
   })
 }
 
@@ -27,11 +24,7 @@ export default function OverridePanel({ specialties, onBook, onRetry, onFeedback
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (selectedId === "") {
-      setSlots([])
-      setSelectedSpecialty(null)
-      return
-    }
+    if (selectedId === "") { setSlots([]); setSelectedSpecialty(null); return }
     const sp = specialties.find((s) => s.id === selectedId) ?? null
     setSelectedSpecialty(sp)
     setLoading(true)
@@ -44,73 +37,56 @@ export default function OverridePanel({ specialties, onBook, onRetry, onFeedback
   const availableSlots = slots.filter((s) => s.available)
 
   return (
-    <div
-      className="mx-2 mb-4 rounded-2xl overflow-hidden animate-slide-up"
-      style={{
-        border: "1px solid rgba(245,158,11,0.2)",
-        background: "rgba(245,158,11,0.03)",
-      }}
-    >
-      <div className="px-4 py-3" style={{ borderBottom: "1px solid rgba(245,158,11,0.12)" }}>
-        <p
-          className="text-xs uppercase tracking-widest font-semibold"
-          style={{ color: "rgba(245,158,11,0.65)", fontSize: "0.6rem" }}
-        >
-          Chọn chuyên khoa thủ công
-        </p>
+    <div className="card card-warning mx-3 mb-4 animate-slide-up">
+      <div className="card-header card-header-warning flex items-center gap-2">
+        <span style={{ fontSize: "1.25rem" }}>🔍</span>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--warning)" }}>
+            Chọn chuyên khoa
+          </p>
+          <p className="text-sm font-medium mt-0.5" style={{ color: "var(--warning-label)" }}>
+            Chọn thủ công nếu AI gợi ý chưa phù hợp
+          </p>
+        </div>
       </div>
 
       <div className="p-4">
         <select
           value={selectedId}
-          onChange={(e) =>
-            setSelectedId(e.target.value === "" ? "" : Number(e.target.value))
-          }
-          className="input-dark"
-          style={{ cursor: "pointer" }}
+          onChange={(e) => setSelectedId(e.target.value === "" ? "" : Number(e.target.value))}
+          className="input-field"
+          style={{ fontSize: "1rem" }}
         >
           <option value="">-- Chọn chuyên khoa --</option>
           {specialties.map((sp) => (
-            <option key={sp.id} value={sp.id}>
-              {sp.name}
-            </option>
+            <option key={sp.id} value={sp.id}>{sp.name}</option>
           ))}
         </select>
 
         {loading && (
-          <p className="text-sm text-center py-3" style={{ color: "rgba(224,240,255,0.38)" }}>
-            Đang tải slot...
-          </p>
+          <p className="text-center py-4" style={{ color: "var(--text-muted)" }}>Đang tải lịch khám...</p>
         )}
 
         {!loading && selectedId !== "" && availableSlots.length === 0 && (
-          <p className="text-sm text-center py-3" style={{ color: "rgba(224,240,255,0.38)" }}>
-            Không có slot khả dụng
-          </p>
+          <p className="text-center py-4" style={{ color: "var(--text-muted)" }}>Không có lịch khám trống.</p>
         )}
 
         {!loading && availableSlots.length > 0 && (
           <div className="mt-3 space-y-2">
             {availableSlots.map((slot) => (
-              <div
-                key={slot.id}
-                className="flex items-center justify-between p-3 rounded-xl"
-                style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                }}
-              >
+              <div key={slot.id} className="slot-item">
                 <div>
-                  <p className="text-sm font-medium" style={{ color: "#e0f0ff" }}>
+                  <p className="font-semibold" style={{ color: "var(--text-primary)", fontSize: "0.9375rem" }}>
                     {slot.doctor}
                   </p>
-                  <p className="text-xs" style={{ color: "rgba(224,240,255,0.42)" }}>
+                  <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
                     {formatDateTime(slot.scheduledAt)}
                   </p>
                 </div>
                 <button
                   onClick={() => selectedSpecialty && onBook(selectedSpecialty, slot)}
-                  className="btn-green px-4 py-1.5 text-xs"
+                  className="btn btn-success text-sm"
+                  style={{ minHeight: "38px", padding: "0 1rem" }}
                 >
                   Đặt lịch
                 </button>
@@ -121,18 +97,12 @@ export default function OverridePanel({ specialties, onBook, onRetry, onFeedback
       </div>
 
       <div className="px-4 pb-4 space-y-2">
-        <button onClick={onRetry} className="btn-ghost w-full py-2 text-xs">
-          Nhập lại triệu chứng
+        <button onClick={onRetry} className="btn btn-outline w-full text-sm">
+          ↩ Nhập lại triệu chứng
         </button>
         {onFeedback && (
           <div className="text-center">
-            <button
-              onClick={onFeedback}
-              className="text-xs underline"
-              style={{ color: "rgba(224,240,255,0.5)", textDecorationColor: "rgba(224,240,255,0.3)" }}
-            >
-              Báo vấn đề
-            </button>
+            <button onClick={onFeedback} className="feedback-link">Báo vấn đề</button>
           </div>
         )}
       </div>

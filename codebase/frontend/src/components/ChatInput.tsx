@@ -28,15 +28,10 @@ export default function ChatInput({
   }
 
   return (
-    <div
-      className="flex gap-2 p-4 flex-shrink-0"
-      style={{
-        borderTop: "1px solid rgba(0,212,255,0.1)",
-        background: "rgba(5,13,26,0.8)",
-      }}
-    >
+    <div className="chat-footer px-4 py-3 flex gap-3 flex-shrink-0">
       <textarea
-        className="input-dark flex-1 resize-none"
+        className="input-field flex-1 resize-none"
+        style={{ minHeight: "52px", maxHeight: "120px" }}
         rows={2}
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -47,9 +42,11 @@ export default function ChatInput({
       <button
         onClick={handleSubmit}
         disabled={disabled || !value.trim()}
-        className="btn-cyan px-5 flex-shrink-0 text-lg font-bold"
+        className="btn btn-primary flex-shrink-0 text-xl"
+        style={{ width: "52px", height: "52px", padding: 0, borderRadius: "0.75rem", alignSelf: "flex-end" }}
+        title="Gửi"
       >
-        →
+        ↑
       </button>
     </div>
   )
