@@ -1,3 +1,23 @@
+# Triage AI — Chatbot Phân Tầng Triệu Chứng & Đặt Lịch Khám
+
+> **Nhóm E1-3 | Healthcare Track | Batch 02 · Day 06 · 04/06/2026**
+
+## Thành viên nhóm
+
+| Mã học viên | Họ và tên |
+|---|---|
+| 2A202600565 | Vũ Duy Bảo |
+| 2A202600921 | Phạm Mạnh Thắng |
+| 2A202600610 | Vũ Quang Bảo |
+
+## Mô tả sản phẩm
+
+Chatbot phân tầng triệu chứng tích hợp AI, giúp bệnh nhân biết nên đi khám chuyên khoa nào hoặc cần cấp cứu ngay — trước khi đặt lịch khám online. Hệ thống phân loại triệu chứng thành 4 mức: **clear** (gợi ý 1 chuyên khoa + đặt lịch), **low-confidence** (hỏi thêm 1 câu để thu hẹp), **red-flag** (chặn đặt lịch, chỉ hiện số cấp cứu 115), và **out-of-scope** (từ chối input không liên quan y tế).
+
+**Track:** Healthcare — lấy BookingCare AI và Vinmec làm app gốc để soi failure mode.
+
+---
+
 # Batch 02 · Day 06 — AI Product Hackathon
 
 > SPEC → Prototype → Demo. Hôm nay không có bài giảng mới — hôm nay chứng minh: SPEC là giả thuyết, prototype là bằng chứng, demo là thuyết phục.
@@ -9,10 +29,8 @@
 **Đại diện nhóm tạo MỘT repo nhóm**, đặt tên:
 
 ```
-Day06-Lop-NhomXX
+Day06-C401-NhomE1-3
 ```
-
-Ví dụ: `Day06-C401-Nhom03`
 
 - **README của repo nhóm phải liệt kê đủ thành viên** — mỗi người gồm **mã học viên + họ và tên**.
 - Đại diện nhóm nộp **link repo** lên LMS. **Hạn nộp: 23:59 ngày 04/06/2026.**
