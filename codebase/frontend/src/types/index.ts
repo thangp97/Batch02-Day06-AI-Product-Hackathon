@@ -67,3 +67,21 @@ export type BookingResponse = {
   ok: boolean
   bookingId: number
 }
+
+export type ConversationSession = {
+  sessionId: string
+  firstUserMessage: string
+  messageCount: number
+  startedAt: string
+  lastActivity: string
+  lastLevel: string | null
+}
+
+export type ConversationLog = {
+  id: number
+  sessionId: string
+  role: "user" | "assistant"
+  content: string
+  metadata: Record<string, unknown> | null
+  createdAt: string
+}

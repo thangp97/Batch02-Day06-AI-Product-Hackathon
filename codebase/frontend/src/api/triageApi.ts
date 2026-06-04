@@ -1,5 +1,5 @@
 import axios from "axios"
-import type { TriageResponse, Specialty, Slot, FeedbackPayload, BookingResponse } from "../types"
+import type { TriageResponse, Specialty, Slot, FeedbackPayload, BookingResponse, ConversationSession, ConversationLog } from "../types"
 
 const MOCK_MODE = false  // false = gọi backend thật (Docker)
 
@@ -235,4 +235,16 @@ export async function postBooking(payload: {
   }
   const res = await axios.post(`${BASE}/bookings`, payload)
   return res.data
+}
+
+export async function getSessions(): Promise<ConversationSession[]> {
+  if (MOCK_MODE) return []
+  const res = await axios.get(`${BASE}/conversations`)
+  return res.data.sessions
+}
+
+export async function getSessionMessages(sessionId: string): Promise<ConversationLog[]> {
+  if (MOCK_MODE) return []
+  const res = await axios.get(`${BASE}/conversations/${sessionId}`)
+  return res.data.messages
 }

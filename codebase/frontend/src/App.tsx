@@ -14,6 +14,8 @@ import FollowupBookingPanel from "./components/FollowupBookingPanel"
 import BookedCard from "./components/BookedCard"
 import BookingModal from "./components/BookingModal"
 import FeedbackModal from "./components/FeedbackModal"
+import LogPanel from "./components/LogPanel"
+import type { LogPanelHandle } from "./components/LogPanel"
 
 type ConversationState = {
   phase: Phase
@@ -55,6 +57,8 @@ export default function App() {
     () => (localStorage.getItem("theme") as "light" | "dark") ?? "light"
   )
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const logPanelRef = useRef<LogPanelHandle>(null)
+  const [logPanelOpen, setLogPanelOpen] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme)
@@ -81,6 +85,9 @@ export default function App() {
           specialtyCode: msg.triageData.specialty?.code ?? null,
         },
       }),
+    }).then(() => {
+      // Auto-refresh log panel sau khi lưu message
+      logPanelRef.current?.refresh()
     })
   }
 
@@ -220,11 +227,8 @@ export default function App() {
 
   return (
     <>
-      {/* Page background */}
-      <div
-        className="min-h-screen flex items-center justify-center p-3"
-        style={{ background: "var(--bg-page)" }}
-      >
+      {/* Page layout */}
+      <div className="app-layout">
         {/* Chat window */}
         <div className="chat-container w-full max-w-lg flex flex-col" style={{ height: "92vh" }}>
 
@@ -420,6 +424,18 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* Log panel */}
+        <LogPanel ref={logPanelRef} currentSessionId={state.sessionId} />
+
+        {/* Mobile toggle button */}
+        <button
+          className="log-toggle-btn"
+          onClick={() => setLogPanelOpen(!logPanelOpen)}
+          title="Lịch sử hội thoại"
+        >
+          📋
+        </button>
       </div>
 
       {/* Booking modal */}

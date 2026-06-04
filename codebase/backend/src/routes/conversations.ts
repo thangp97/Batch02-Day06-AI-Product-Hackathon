@@ -6,6 +6,59 @@ const router = Router();
 
 const VALID_ROLES = ["user", "assistant"];
 
+// GET /conversations — liệt kê tất cả sessions (cho log panel)
+router.get("/", async (_req: Request, res: Response) => {
+  try {
+    // Lấy tất cả messages, group theo sessionId
+    const messages = await prisma.conversationMessage.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Group by sessionId
+    const sessionMap = new Map<string, {
+      sessionId: string;
+      firstUserMessage: string;
+      messageCount: number;
+      startedAt: Date;
+      lastActivity: Date;
+      lastLevel: string | null;
+    }>();
+
+    for (const msg of messages) {
+      const existing = sessionMap.get(msg.sessionId);
+      if (!existing) {
+        const meta = msg.metadata as Record<string, unknown> | null;
+        sessionMap.set(msg.sessionId, {
+          sessionId: msg.sessionId,
+          firstUserMessage: msg.role === "user" ? msg.content : "",
+          messageCount: 1,
+          startedAt: msg.createdAt,
+          lastActivity: msg.createdAt,
+          lastLevel: meta?.level as string ?? null,
+        });
+      } else {
+        existing.messageCount++;
+        if (!existing.firstUserMessage && msg.role === "user") {
+          existing.firstUserMessage = msg.content;
+        }
+        if (msg.createdAt < existing.startedAt) existing.startedAt = msg.createdAt;
+        if (msg.createdAt > existing.lastActivity) existing.lastActivity = msg.createdAt;
+        const meta = msg.metadata as Record<string, unknown> | null;
+        if (meta?.level) existing.lastLevel = meta.level as string;
+      }
+    }
+
+    // Sort sessions by lastActivity (mới nhất trước)
+    const sessions = Array.from(sessionMap.values())
+      .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
+
+    res.json({ sessions });
+  } catch (err) {
+    console.error("[conversations GET all]", err);
+    res.status(500).json({ error: "DB_ERROR", message: "Lỗi kết nối PostgreSQL." });
+  }
+});
+
 // POST /conversations — lưu 1 lượt tin nhắn
 router.post("/", async (req: Request, res: Response) => {
   const { sessionId, role, content, metadata } = req.body;
