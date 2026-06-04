@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: triage_chatbot_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: triage_chatbot
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: triage_chatbot_backend
+    ports:
+      - "5000:5000"
+    environment:
+      # DB dùng hostname nội bộ Docker (service name), không phải localhost
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/triage_chatbot
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      PORT: 5000
+      # Đặt RUN_SEED=true khi muốn seed dữ liệu lúc khởi động
+      RUN_SEED: ${RUN_SEED:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
