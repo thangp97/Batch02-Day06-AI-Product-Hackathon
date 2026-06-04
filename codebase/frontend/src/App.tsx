@@ -98,8 +98,8 @@ export default function App() {
       setState((prev) => ({ ...prev, phase: "low-confidence", lastTriage: triage, symptoms }))
       return
     }
-    // out-of-scope hoặc booking-prompt → giữ idle để user tiếp tục nhập
-    if (triage.level === "out-of-scope" || triage.level === "booking-prompt") {
+    // out-of-scope, booking-prompt, hoặc greeting → giữ idle để user tiếp tục nhập
+    if (triage.level === "out-of-scope" || triage.level === "booking-prompt" || triage.level === "greeting") {
       setState((prev) => ({ ...prev, phase: "idle", lastTriage: triage }))
       return
     }
@@ -262,11 +262,32 @@ export default function App() {
                   ✚
                 </div>
                 <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
-                  Xin chào! Tôi có thể giúp gì?
+                  Xin chào! 👋 Tôi có thể giúp gì?
                 </h2>
-                <p className="text-base mb-6" style={{ color: "var(--text-secondary)" }}>
+                <p className="text-base mb-4" style={{ color: "var(--text-secondary)" }}>
                   Mô tả triệu chứng của bạn để nhận gợi ý chuyên khoa phù hợp
                 </p>
+
+                {/* Danh sách khoa khám */}
+                <div className="text-left mx-auto mb-5 px-4 py-3 rounded-xl" style={{ background: "var(--bg-secondary)", maxWidth: "320px" }}>
+                  <p className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>🏥 Các chuyên khoa hiện có:</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { icon: "👁️", name: "Chuyên khoa Mắt" },
+                      { icon: "🧠", name: "Thần kinh" },
+                      { icon: "🩺", name: "Nội tổng quát" },
+                      { icon: "🫃", name: "Tiêu hóa" },
+                      { icon: "❤️", name: "Tim mạch" },
+                      { icon: "🦴", name: "Cơ xương khớp" },
+                    ].map((s) => (
+                      <div key={s.name} className="flex items-center gap-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+                        <span>{s.icon}</span>
+                        <span>{s.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap gap-2 justify-center">
                   {HINTS.map((hint) => (
                     <button key={hint} onClick={() => handleSymptomSubmit(hint)} className="hint-chip">

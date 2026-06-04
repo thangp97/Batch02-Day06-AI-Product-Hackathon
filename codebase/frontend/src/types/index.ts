@@ -5,6 +5,7 @@ export type TriageLevel =
   | "out-of-scope"
   | "booking-prompt"
   | "followup-intent"
+  | "greeting"
 
 export type Specialty = {
   id: number

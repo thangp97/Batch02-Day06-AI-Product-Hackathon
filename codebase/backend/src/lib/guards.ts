@@ -61,6 +61,52 @@ export function detectBookingIntent(input: string): boolean {
   return BOOKING_INTENT_PATTERNS.some((p) => p.test(input));
 }
 
+// Pattern phát hiện lời chào / giao tiếp xã hội / hỏi thông tin dịch vụ
+const GREETING_PATTERNS = [
+  // Lời chào
+  /^(xin\s+)?chào(\s+bạn)?[.!]?$/i,
+  /^hello[.!]?$/i,
+  /^hi[.!]?$/i,
+  /^hey[.!]?$/i,
+  /^chào\s+(buổi\s+)?(sáng|chiều|tối)[.!]?$/i,
+  /^alo[.!]?$/i,
+
+  // Cảm ơn
+  /c[aả]m\s+ơn/i,
+  /^thanks?(\s+you)?[.!]?$/i,
+
+  // Hỏi thăm / giới thiệu
+  /^bạn\s+(là\s+)?(ai|gì)[?]?$/i,
+  /^bot\s+(là\s+)?(ai|gì)[?]?$/i,
+  /bạn\s+(có\s+thể|giúp)\s+(làm\s+)?gì/i,
+  /giúp\s+gì\s+được/i,
+  /bạn\s+làm\s+được\s+gì/i,
+  /dùng\s+(như\s+)?thế\s+nào/i,
+  /sử\s+dụng\s+(như\s+)?thế\s+nào/i,
+
+  // Hỏi về dịch vụ / chuyên khoa — trả lời bằng danh sách khoa từ DB
+  /có\s+(những\s+)?khoa\s+(gì|nào)/i,
+  /những\s+khoa\s+(gì|nào)/i,
+  /danh\s+sách\s+(chuyên\s+)?khoa/i,
+  /chuyên\s+khoa\s+(gì|nào)/i,
+  /khám\s+(được\s+)?(những\s+)?gì/i,
+  /có\s+dịch\s+vụ\s+(gì|nào)/i,
+  /đặt\s+lịch\s+(được\s+)?(những\s+)?gì/i,
+  /có\s+thể\s+đặt\s+(lịch\s+)?(gì|nào)/i,
+  /hướng\s+dẫn/i,
+
+  // Tạm biệt
+  /^(tạm\s+biệt|bye|goodbye)[.!]?$/i,
+
+  // Chào hỏi kèm từ khóa
+  /^(xin\s+)?chào[,.]?\s+tôi\s+muốn\s+(hỏi|biết)/i,
+];
+
+/** Trả về true nếu input là lời chào hoặc giao tiếp xã hội thân thiện */
+export function detectGreeting(input: string): boolean {
+  return GREETING_PATTERNS.some((p) => p.test(input));
+}
+
 // Pattern phát hiện prompt injection trước khi gọi LLM
 const INJECTION_PATTERNS = [
   /ignore\s+(all\s+)?(previous|prior|above)\s+instructions?/i,
