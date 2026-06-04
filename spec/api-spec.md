@@ -1,7 +1,40 @@
 # API Spec — Triage Chatbot
 
-**Stack:** Node.js + Express + PostgreSQL + LLM (Claude / OpenAI)  
+**Stack:** Node.js + Express + PostgreSQL (Prisma ORM) + LLM (Claude / OpenAI)  
 **Base URL:** `http://localhost:5000/api`
+
+---
+
+## Database Schema (PostgreSQL)
+
+```sql
+-- Danh sách chuyên khoa
+CREATE TABLE specialties (
+  id          SERIAL PRIMARY KEY,
+  code        VARCHAR(20)  UNIQUE NOT NULL,  -- vd: 'MAT', 'THAN_KINH'
+  name        VARCHAR(100) NOT NULL
+);
+
+-- Slot khám theo chuyên khoa
+CREATE TABLE slots (
+  id             SERIAL PRIMARY KEY,
+  specialty_id   INTEGER REFERENCES specialties(id) ON DELETE CASCADE,
+  doctor         VARCHAR(100) NOT NULL,
+  scheduled_at   TIMESTAMP   NOT NULL,
+  available      BOOLEAN     DEFAULT TRUE
+);
+
+-- Log hành động chỉnh sửa của user (tập kiểm thử)
+CREATE TABLE triage_logs (
+  id               SERIAL PRIMARY KEY,
+  symptoms         TEXT        NOT NULL,
+  ai_level         VARCHAR(20) NOT NULL,   -- 'clear' | 'low-confidence' | 'red-flag'
+  ai_suggested     VARCHAR(100),
+  user_action      VARCHAR(10) NOT NULL,   -- 'override' | 'retry'
+  user_selected    VARCHAR(100),
+  created_at       TIMESTAMP   DEFAULT NOW()
+);
+```
 
 ---
 
@@ -51,7 +84,7 @@ Nhận triệu chứng đầu vào, gọi LLM phân tầng, trả về action t�
 | `level` | `"clear" \| "low-confidence" \| "red-flag"` | Mức phân tầng |
 | `message` | `string` | Nội dung hiển thị trong chat bubble |
 | `question` | `string \| null` | Câu hỏi thu hẹp — chỉ có khi `level = low-confidence` |
-| `specialty` | `string \| null` | Tên chuyên khoa gợi ý — chỉ có khi `level = clear` |
+| `specialty` | `Specialty \| null` | Chuyên khoa gợi ý — chỉ có khi `level = clear` |
 | `slots` | `Slot[] \| null` | Danh sách slot — chỉ có khi `level = clear` |
 | `disclaimer` | `string` | Luôn có ở mọi response |
 
@@ -67,10 +100,10 @@ Nhận triệu chứng đầu vào, gọi LLM phân tầng, trả về action t�
   "level": "clear",
   "message": "Triệu chứng của bạn phù hợp với Chuyên khoa Mắt.",
   "question": null,
-  "specialty": "Chuyên khoa Mắt",
+  "specialty": { "id": 1, "code": "MAT", "name": "Chuyên khoa Mắt" },
   "slots": [
-    { "id": "slot_01", "doctor": "BS. Nguyễn Văn A", "time": "09:00 - 07/06/2026", "available": true },
-    { "id": "slot_02", "doctor": "BS. Trần Thị B",   "time": "14:00 - 07/06/2026", "available": true }
+    { "id": 1, "doctor": "BS. Nguyễn Văn A", "scheduledAt": "2026-06-07T09:00:00Z", "available": true },
+    { "id": 2, "doctor": "BS. Trần Thị B",   "scheduledAt": "2026-06-07T14:00:00Z", "available": true }
   ],
   "disclaimer": "Đây là gợi ý tham khảo — gặp bác sĩ để xác nhận."
 }
@@ -131,14 +164,14 @@ Re-triage sau khi user trả lời câu hỏi thu hẹp. Chỉ gọi khi `level 
 
 ### Response
 
-Cấu trúc giống `/triage`. Nếu vẫn không rõ sau 1 vòng hỏi thêm, trả về fallback:
+Cấu trúc giống `/triage`. Nếu vẫn không rõ sau 1 vòng hỏi thêm, trả về fallback Nội tổng quát:
 
 ```json
 {
   "level": "clear",
   "message": "Dựa trên triệu chứng, bạn nên khám Nội tổng quát trước để được tư vấn thêm.",
   "question": null,
-  "specialty": "Nội tổng quát",
+  "specialty": { "id": 3, "code": "NOI_TONG_QUAT", "name": "Nội tổng quát" },
   "slots": [ ... ],
   "disclaimer": "Đây là gợi ý tham khảo — gặp bác sĩ để xác nhận."
 }
@@ -150,19 +183,19 @@ Cấu trúc giống `/triage`. Nếu vẫn không rõ sau 1 vòng hỏi thêm, t
 
 ## 3. `GET /specialties`
 
-Lấy danh sách chuyên khoa (mock data từ PostgreSQL).
+Lấy danh sách chuyên khoa từ bảng `specialties` trong PostgreSQL.
 
 ### Response
 
 ```json
 {
   "specialties": [
-    { "id": "sp_mat",    "name": "Chuyên khoa Mắt" },
-    { "id": "sp_than",   "name": "Thần kinh" },
-    { "id": "sp_noi",    "name": "Nội tổng quát" },
-    { "id": "sp_tieuhoa","name": "Tiêu hóa" },
-    { "id": "sp_tim",    "name": "Tim mạch" },
-    { "id": "sp_xuong",  "name": "Cơ xương khớp" }
+    { "id": 1, "code": "MAT",          "name": "Chuyên khoa Mắt" },
+    { "id": 2, "code": "THAN_KINH",    "name": "Thần kinh" },
+    { "id": 3, "code": "NOI_TONG_QUAT","name": "Nội tổng quát" },
+    { "id": 4, "code": "TIEU_HOA",     "name": "Tiêu hóa" },
+    { "id": 5, "code": "TIM_MACH",     "name": "Tim mạch" },
+    { "id": 6, "code": "CO_XUONG_KHOP","name": "Cơ xương khớp" }
   ]
 }
 ```
@@ -173,23 +206,29 @@ Dùng cho **Failure/Override path** — frontend hiển thị dropdown để use
 
 ## 4. `GET /specialties/:id/slots`
 
-Lấy slot khả dụng của một chuyên khoa.
+Lấy slot khả dụng của một chuyên khoa từ bảng `slots`.
 
 ### Params
 
 | Param | Type | Mô tả |
 |---|---|---|
-| `id` | `string` | ID chuyên khoa (từ `/specialties`) |
+| `id` | `integer` | ID chuyên khoa (từ bảng `specialties`) |
+
+### Query (tuỳ chọn)
+
+| Param | Type | Mô tả |
+|---|---|---|
+| `date` | `string` (YYYY-MM-DD) | Lọc slot theo ngày |
 
 ### Response
 
 ```json
 {
-  "specialty": "Chuyên khoa Mắt",
+  "specialty": { "id": 1, "code": "MAT", "name": "Chuyên khoa Mắt" },
   "slots": [
-    { "id": "slot_01", "doctor": "BS. Nguyễn Văn A", "time": "09:00 - 07/06/2026", "available": true },
-    { "id": "slot_02", "doctor": "BS. Trần Thị B",   "time": "14:00 - 07/06/2026", "available": false },
-    { "id": "slot_03", "doctor": "BS. Nguyễn Văn A", "time": "09:00 - 08/06/2026", "available": true }
+    { "id": 1, "doctor": "BS. Nguyễn Văn A", "scheduledAt": "2026-06-07T09:00:00Z", "available": true },
+    { "id": 2, "doctor": "BS. Trần Thị B",   "scheduledAt": "2026-06-07T14:00:00Z", "available": false },
+    { "id": 3, "doctor": "BS. Nguyễn Văn A", "scheduledAt": "2026-06-08T09:00:00Z", "available": true }
   ]
 }
 ```
@@ -198,13 +237,14 @@ Lấy slot khả dụng của một chuyên khoa.
 
 ## 5. `POST /log`
 
-Lưu hành động chỉnh sửa của user để làm tập kiểm thử. Gọi khi user override chuyên khoa hoặc nhập lại triệu chứng.
+INSERT một bản ghi vào bảng `triage_logs`. Gọi khi user override chuyên khoa hoặc nhập lại triệu chứng.
 
 ### Request
 
 ```json
 {
   "symptoms": "hay mệt mỏi, đôi khi đau đầu",
+  "aiLevel": "clear",
   "aiSuggested": "Nội tổng quát",
   "userAction": "override",
   "userSelected": "Thần kinh"
@@ -214,6 +254,7 @@ Lưu hành động chỉnh sửa của user để làm tập kiểm thử. Gọi
 | Field | Type | Bắt buộc | Mô tả |
 |---|---|---|---|
 | `symptoms` | `string` | ✅ | Triệu chứng gốc user đã nhập |
+| `aiLevel` | `"clear" \| "low-confidence" \| "red-flag"` | ✅ | Mức AI đã classify |
 | `aiSuggested` | `string \| null` | ✅ | Chuyên khoa AI đã gợi ý |
 | `userAction` | `"override" \| "retry"` | ✅ | `override` = chọn khoa khác, `retry` = nhập lại triệu chứng |
 | `userSelected` | `string \| null` | | Chuyên khoa user chọn thủ công (nếu `override`) |
@@ -221,8 +262,10 @@ Lưu hành động chỉnh sửa của user để làm tập kiểm thử. Gọi
 ### Response
 
 ```json
-{ "ok": true }
+{ "ok": true, "logId": 42 }
 ```
+
+> `logId` là `id` của bản ghi vừa INSERT vào `triage_logs`.
 
 ---
 
@@ -231,10 +274,16 @@ Lưu hành động chỉnh sửa của user để làm tập kiểm thử. Gọi
 ```typescript
 type TriageLevel = "clear" | "low-confidence" | "red-flag"
 
+type Specialty = {
+  id: number          // SERIAL từ PostgreSQL
+  code: string        // vd: "MAT", "THAN_KINH"
+  name: string
+}
+
 type Slot = {
-  id: string
+  id: number          // SERIAL từ PostgreSQL
   doctor: string
-  time: string        // "HH:mm - DD/MM/YYYY"
+  scheduledAt: string // ISO 8601 — "2026-06-07T09:00:00Z"
   available: boolean
 }
 
@@ -242,9 +291,9 @@ type TriageResponse = {
   level: TriageLevel
   message: string
   question: string | null
-  specialty: string | null
+  specialty: Specialty | null
   slots: Slot[] | null
-  hotline?: string            // chỉ khi red-flag
+  hotline?: string      // chỉ khi red-flag
   disclaimer: string
 }
 ```
@@ -257,13 +306,14 @@ type TriageResponse = {
 |---|---|---|
 | `400` | `MISSING_SYMPTOMS` | `symptoms` rỗng hoặc thiếu |
 | `400` | `SYMPTOMS_TOO_LONG` | `symptoms` vượt 500 ký tự |
+| `404` | `SPECIALTY_NOT_FOUND` | `id` không tồn tại trong bảng `specialties` |
 | `500` | `LLM_ERROR` | LLM không trả về JSON hợp lệ |
 | `500` | `DB_ERROR` | Lỗi kết nối PostgreSQL |
 
 ```json
 {
-  "error": "MISSING_SYMPTOMS",
-  "message": "Vui lòng nhập triệu chứng trước khi gửi."
+  "error": "SPECIALTY_NOT_FOUND",
+  "message": "Chuyên khoa không tồn tại."
 }
 ```
 
@@ -274,3 +324,4 @@ type TriageResponse = {
 1. Nếu `level = red-flag`: **strip toàn bộ** `specialty` và `slots` trước khi trả về — dù LLM có trả về hay không.
 2. `disclaimer` luôn có mặt trong mọi response thành công.
 3. `/triage/followup` chỉ được gọi tối đa 1 lần — backend không có endpoint `followup/followup`.
+4. Tất cả query PostgreSQL phải dùng **parameterized queries** (qua Prisma hoặc `pg` với `$1, $2`) — không nối string SQL trực tiếp.
