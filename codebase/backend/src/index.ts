@@ -52,6 +52,19 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+// Serve frontend static files if they exist (for production deployment on Render)
+import path from "path";
+const frontendPath = path.join(__dirname, "../../frontend/dist");
+app.use(express.static(frontendPath));
+
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    next();
+  } else {
+    res.sendFile(path.join(frontendPath, "index.html"));
+  }
+});
+
 // Global error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
@@ -61,3 +74,4 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+

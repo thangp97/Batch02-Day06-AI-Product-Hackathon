@@ -1,0 +1,76 @@
+# Dockerfile.render
+# This Dockerfile builds both the frontend and backend into a single image,
+# which is perfect for deploying as a single Web Service on Render.
+
+# ==========================================
+# Stage 1: Build the Frontend
+# ==========================================
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+# Build the React frontend. VITE_API_URL can be relative since we are serving it from the same domain
+RUN VITE_API_URL=/api npm run build
+
+# ==========================================
+# Stage 2: Build the Backend
+# ==========================================
+FROM node:20-alpine AS backend-builder
+WORKDIR /app/backend
+
+# Need openssl for Prisma
+RUN apk add --no-cache openssl
+
+COPY backend/package*.json backend/tsconfig.json ./
+RUN npm ci
+
+COPY backend/prisma ./prisma
+COPY backend/src ./src
+
+# Generate Prisma client and build TypeScript
+RUN npx prisma generate
+RUN npm run build
+
+# ==========================================
+# Stage 3: Production Image
+# ==========================================
+FROM node:20-alpine
+WORKDIR /app
+
+# Need openssl for Prisma in production too
+RUN apk add --no-cache openssl
+
+# --- Setup Backend ---
+WORKDIR /app/backend
+COPY backend/package*.json ./
+RUN npm ci --omit=dev && npm install tslib
+
+# Copy built backend files
+COPY --from=backend-builder /app/backend/dist ./dist
+COPY --from=backend-builder /app/backend/node_modules/.prisma ./node_modules/.prisma
+COPY backend/prisma ./prisma
+
+# --- Setup Frontend ---
+WORKDIR /app/frontend
+# Copy built frontend files so the backend can serve them
+COPY --from=frontend-builder /app/frontend/dist ./dist
+
+# --- Final Setup ---
+WORKDIR /app/backend
+
+# Add an entrypoint script to run migrations and start the server
+COPY backend/docker-entrypoint.sh ./
+RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
+
+# Expose the port (Render will dynamically set the PORT env variable)
+EXPOSE 5000
+
+# Set environment variables
+ENV NODE_ENV=production
+# Note: DATABASE_URL and OPENROUTER_API_KEY must be set in the Render dashboard
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["node", "dist/index.js"]
