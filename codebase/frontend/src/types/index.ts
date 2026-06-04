@@ -1,0 +1,60 @@
+export type TriageLevel = "clear" | "low-confidence" | "red-flag"
+
+export type Specialty = {
+  id: number
+  code: string
+  name: string
+}
+
+export type Slot = {
+  id: number
+  doctor: string
+  scheduledAt: string
+  available: boolean
+}
+
+export type TriageResponse = {
+  level: TriageLevel
+  message: string
+  question: string | null
+  specialty: Specialty | null
+  slots: Slot[] | null
+  hotline?: string
+  disclaimer: string
+}
+
+export type MessageRole = "user" | "ai"
+
+export type Message = {
+  id: string
+  role: MessageRole
+  content: string
+  triageData?: TriageResponse
+}
+
+export type Phase =
+  | "idle"
+  | "loading"
+  | "clear"
+  | "low-confidence"
+  | "low-confidence-loading"
+  | "red-flag"
+  | "override"
+  | "booking-form"
+  | "booking-loading"
+  | "booked"
+
+export type FeedbackPayload = {
+  symptoms: string
+  aiLevel: string
+  aiSuggested: string | null
+  correctSpecialty: string | null
+  note: string
+  rating: number
+  bookingId?: number | null
+}
+
+export type BookingResponse = {
+  ok: boolean
+  bookingId: number
+}

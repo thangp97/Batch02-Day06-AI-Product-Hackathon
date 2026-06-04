@@ -3,3 +3,6 @@ node_modules/
 .env
 *.log
 .omc
+
+# Private team notes — không push lên GitHub
+_notes.md
