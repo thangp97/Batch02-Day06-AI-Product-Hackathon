@@ -15,15 +15,22 @@ const MODEL = process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini";
 
 export async function chatComplete(
   systemPrompt: string,
-  userMessage: string
+  userMessage: string,
+  history: { role: "user" | "assistant"; content: string }[] = []
 ): Promise<string> {
+  const messages: any[] = [{ role: "system", content: systemPrompt }];
+  
+  // Natively inject conversation history for better LLM context understanding
+  for (const msg of history) {
+    messages.push({ role: msg.role, content: msg.content });
+  }
+  
+  messages.push({ role: "user", content: userMessage });
+
   const response = await client.chat.completions.create({
     model: MODEL,
     max_tokens: 512,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user",   content: userMessage },
-    ],
+    messages: messages,
   });
 
   return response.choices[0]?.message?.content ?? "";
