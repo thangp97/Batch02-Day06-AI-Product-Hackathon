@@ -85,18 +85,19 @@ function mockTriage(symptoms: string): TriageResponse {
 
 // ─── API functions ─────────────────────────────────────────────────────────────
 
-export async function postTriage(symptoms: string): Promise<TriageResponse> {
+export async function postTriage(symptoms: string, sessionId?: string): Promise<TriageResponse> {
   if (MOCK_MODE) {
     await delay()
     return mockTriage(symptoms)
   }
-  const res = await axios.post(`${BASE}/triage`, { symptoms })
+  const res = await axios.post(`${BASE}/triage`, { symptoms, sessionId })
   return res.data
 }
 
 export async function postFollowup(
   symptoms: string,
-  answer: string
+  answer: string,
+  sessionId?: string
 ): Promise<TriageResponse> {
   if (MOCK_MODE) {
     await delay()
@@ -124,7 +125,7 @@ export async function postFollowup(
       disclaimer: "Đây là gợi ý tham khảo — gặp bác sĩ để xác nhận.",
     }
   }
-  const res = await axios.post(`${BASE}/triage/followup`, { symptoms, answer })
+  const res = await axios.post(`${BASE}/triage/followup`, { symptoms, answer, sessionId })
   return res.data
 }
 

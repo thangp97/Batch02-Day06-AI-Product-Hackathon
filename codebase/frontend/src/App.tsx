@@ -98,7 +98,7 @@ export default function App() {
     addMessage({ role: "user", content: symptoms })
     setState((prev) => ({ ...prev, phase: "loading", symptoms }))
     try {
-      const triage = await postTriage(symptoms)
+      const triage = await postTriage(symptoms, state.sessionId)
       handleTriageResponse(triage, symptoms)
     } catch {
       addMessage({ role: "ai", content: "Có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại." })
@@ -137,7 +137,7 @@ export default function App() {
     addMessage({ role: "user", content: answer })
     setState((prev) => ({ ...prev, phase: "low-confidence-loading", followupUsed: true }))
     try {
-      const triage = await postFollowup(state.symptoms, answer)
+      const triage = await postFollowup(state.symptoms, answer, state.sessionId)
       handleTriageResponse(triage, state.symptoms)
     } catch {
       addMessage({ role: "ai", content: "Có lỗi xảy ra. Vui lòng thử lại." })
