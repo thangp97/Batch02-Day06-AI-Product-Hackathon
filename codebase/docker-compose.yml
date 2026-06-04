@@ -1,0 +1,67 @@
+# docker-compose.yml — Khởi động toàn bộ stack: PostgreSQL + Backend + Frontend
+#
+# Cách dùng:
+#   cp backend/.env.example backend/.env    # điền OPENROUTER_API_KEY
+#   docker compose up --build               # build + chạy lần đầu
+#   docker compose up                       # những lần sau
+#
+# Sau khi chạy:
+#   Frontend : http://localhost:3000
+#   Backend  : http://localhost:5000
+#   DB admin : dùng POSTGRES_USER/PASSWORD bên dưới
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: triage_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: triage_chatbot
+    ports:
+      - "5433:5432"          # host:5433 → container:5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: triage_backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env          # chứa OPENROUTER_API_KEY và config thật
+    environment:
+      # Override DATABASE_URL để dùng hostname Docker nội bộ
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/triage_chatbot
+      PORT: 5000
+      RUN_SEED: ${RUN_SEED:-true}   # seed dữ liệu khi khởi động lần đầu
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Browser gọi backend qua host port 5000 — không phải container network
+        VITE_API_URL: http://localhost:5000/api
+    container_name: triage_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
