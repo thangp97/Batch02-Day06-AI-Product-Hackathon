@@ -205,6 +205,14 @@ router.post("/", async (req: Request, res: Response) => {
   try {
     const llmResult = await callLLM(symptoms);
     const response = await buildResponse(llmResult);
+    prisma.triageLog.create({
+      data: {
+        symptoms,
+        aiLevel: llmResult.level,
+        aiSuggested: llmResult.level === "clear" ? llmResult.specialtyName : null,
+        userAction: "triage",
+      },
+    }).catch((e) => console.error("[triage log]", e));
     res.json(response);
   } catch (err) {
     console.error("[triage]", err);
@@ -228,7 +236,6 @@ router.post("/followup", async (req: Request, res: Response) => {
     const userMessage = `${symptoms} ${answer}`;
     let llmResult = await callLLM(userMessage);
 
-    // Nếu vẫn low-confidence sau followup → fallback Nội tổng quát
     if (llmResult.level === "low-confidence") {
       llmResult = {
         level: "clear",
@@ -239,6 +246,14 @@ router.post("/followup", async (req: Request, res: Response) => {
     }
 
     const response = await buildResponse(llmResult);
+    prisma.triageLog.create({
+      data: {
+        symptoms: `${symptoms} [followup: ${answer}]`,
+        aiLevel: llmResult.level,
+        aiSuggested: llmResult.level === "clear" ? llmResult.specialtyName : null,
+        userAction: "followup",
+      },
+    }).catch((e) => console.error("[triage followup log]", e));
     res.json(response);
   } catch (err) {
     console.error("[triage/followup]", err);

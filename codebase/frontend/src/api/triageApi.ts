@@ -193,21 +193,34 @@ export async function postLog(payload: {
   await axios.post(`${BASE}/log`, payload).catch(() => {})
 }
 
-export async function postFeedback(payload: FeedbackPayload): Promise<void> {
+export async function postFeedback(payload: FeedbackPayload & { sessionId?: string | null }): Promise<void> {
   if (MOCK_MODE) {
     console.log("[mock feedback]", payload)
     return
   }
-  // Build comment từ correctSpecialty + note
   const parts: string[] = []
-  if (payload.correctSpecialty) parts.push(`Chuyên khoa đúng: ${payload.correctSpecialty}`)
-  if (payload.note) parts.push(payload.note)
+  if (payload.symptoms)         parts.push(`Triệu chứng: ${payload.symptoms}`)
+  if (payload.aiLevel)          parts.push(`AI phân loại: ${payload.aiLevel}`)
+  if (payload.aiSuggested)      parts.push(`Gợi ý khoa: ${payload.aiSuggested}`)
+  if (payload.correctSpecialty) parts.push(`Khoa đúng: ${payload.correctSpecialty}`)
+  if (payload.note)             parts.push(payload.note)
 
   await axios.post(`${BASE}/feedback`, {
+    sessionId: payload.sessionId ?? undefined,
     rating: payload.rating,
-    comment: parts.join(" — ") || undefined,
+    comment: parts.join(" | ") || undefined,
     bookingId: payload.bookingId ?? undefined,
   }).catch(() => {})
+}
+
+export async function postConversation(payload: {
+  sessionId: string
+  role: "user" | "assistant"
+  content: string
+  metadata?: Record<string, unknown>
+}): Promise<void> {
+  if (MOCK_MODE) return
+  await axios.post(`${BASE}/conversations`, payload).catch(() => {})
 }
 
 export async function postBooking(payload: {
