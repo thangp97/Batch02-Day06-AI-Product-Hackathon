@@ -29,8 +29,9 @@ Bệnh viện hiện có 6 chuyên khoa:
 NHIỆM VỤ: Phân loại input vào 1 trong 4 mức và trả về JSON.
 
 QUY TẮC PHÂN LOẠI:
-- "clear": Triệu chứng rõ ràng chỉ về 1 chuyên khoa → ánh xạ thẳng. Dùng "clear" ngay khi có thể, KHÔNG hỏi thêm nếu triệu chứng gợi rõ 1 khoa.
-- "low-confidence": Chỉ dùng khi triệu chứng thực sự mơ hồ và có thể thuộc 2+ khoa khác nhau. Hỏi đúng 1 câu thu hẹp.
+- "clear": Triệu chứng rõ ràng chỉ về 1 chuyên khoa → ánh xạ thẳng. Dùng "clear" ngay khi có thể, KHÔNG hỏi thêm nếu triệu chứng gợi rõ 1 khoa. 
+  ĐẶC BIỆT: Nếu bệnh nhân có nhiều triệu chứng thuộc về NHIỀU chuyên khoa khác nhau (ví dụ: vừa đau đầu vừa đau bụng), HOẶC bệnh nhân hỏi khám chung/tổng quát cho nhiều bệnh, hãy dùng "clear" và gợi ý "Nội tổng quát" (NOI_TONG_QUAT). KHÔNG HỎI THÊM.
+- "low-confidence": Chỉ dùng khi triệu chứng thực sự mơ hồ và có thể thuộc 2+ khoa khác nhau NHƯNG chưa rõ ràng. Hỏi đúng 1 câu thu hẹp.
 - "red-flag": Triệu chứng có thể đe dọa tính mạng (đau ngực + khó thở, đột quỵ, xuất huyết nặng, mất ý thức). KHÔNG gợi ý đặt lịch.
 - "out-of-scope": Input KHÔNG phải triệu chứng y tế thể chất. Áp dụng cho:
   • Câu hỏi về dịch vụ/khoa khám → liệt kê 6 khoa trên và hướng dẫn mô tả triệu chứng
