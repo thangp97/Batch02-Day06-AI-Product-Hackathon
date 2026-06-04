@@ -1,5 +1,6 @@
 # Stage 1: Build TypeScript
 FROM node:20-alpine AS builder
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 COPY package*.json tsconfig.json ./
@@ -13,6 +14,7 @@ RUN npm run build
 
 # Stage 2: Production image
 FROM node:20-alpine AS runner
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Cài prod deps + ts-node (dùng cho db:seed)
